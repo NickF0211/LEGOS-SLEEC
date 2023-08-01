@@ -1,7 +1,7 @@
 Instruction for launching N-Check:
 
-# N-check
-# This is the  repo for tool N-Check
+# N-Tool, an implementation of N-check
+# This is the  repo for tool N-Tool
 
 ### prerequisite:
 1. Python 3.5 and later
