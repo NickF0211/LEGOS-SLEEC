@@ -1,0 +1,79 @@
+def_start
+	event DressingStarted
+	event DressingComplete
+	event DressingAbandoned
+	event CurtainOpenRqt
+	event CurtainsOpened
+	event RefuseRequest
+	event UserFallen
+	measure userUnderDressed: boolean
+	measure roomTemperature: numeric
+	measure assentToSupportCalls:boolean
+	event SupportCalled
+	event RetryAgreed
+    measure userDistressed : scale(low, medium, high)
+	constant MAX_RESPONSE_TIME = 60
+def_end
+
+rule_start
+	r1 when DressingStarted then
+	DressingAbandoned within 2 minutes
+	otherwise {DressingComplete  within 2 minutes
+	unless ({roomTemperature} < 19) then DressingComplete within 90 seconds
+	unless ({roomTemperature} < 17) then DressingComplete within 60 seconds}
+
+	//generalizing r1 to define the time limit as a function of temperature
+	r1_prime when DressingStarted then DressingAbandoned within 2 minutes
+		otherwise {DressingComplete within 2 minutes
+		unless ({roomTemperature} <= 22) then DressingComplete
+			within (120 - ((22 - {roomTemperature}) * 15)) seconds
+		// if the temperature is too low, and dressing cannot be completed, call support
+   	 	unless (({roomTemperature} <= 11)   and {userUnderDressed})
+		then  {SupportCalled unless (not {assentToSupportCalls})}}
+
+   	 //If user is stressed, then the (1) robot should interrupted the dressing action and (2) call support if applicable
+    	r2_1 when DressingStarted and ({userDistressed} > medium) then DressingAbandoned
+
+    	r2_2 when DressingStarted  and ({userDistressed} > medium) then  SupportCalled
+		unless (not {assentToSupportCalls})
+
+    	//If the user agrees to  retry dressing, then start dressing within [1 to 30] seconds
+    	r3 when RetryAgreed then DressingStarted within [1 seconds, 30 seconds]
+
+    	// If the user agrees to retry dressing, then start dressing in the future,
+	//  unless the user is under high stress, thenstart dressing within 30 seconds or
+	// make another retry agreement later
+    	r3_special_case when RetryAgreed then DressingStarted eventually
+    		unless ({userDistressed} = high) then
+		{DressingStarted within 30 seconds
+			otherwise SupportCalled within 30 seconds}
+
+    	//If a user agree to retry, then the dressing action will eventually be completed or abandoned
+     	r3_consequence when RetryAgreed then DressingComplete eventually
+		otherwise DressingAbandoned eventually
+
+     	r4 when CurtainOpenRqt then CurtainsOpened within 60 seconds
+		unless {userUnderDressed} then RefuseRequest within 30 seconds
+		unless ({userDistressed} > medium) then CurtainsOpened within 60 seconds
+
+
+    	r5  when UserFallen then SupportCalled unless (not {assentToSupportCalls})
+
+    	r6 when DressingAbandoned then RetryAgreed within 30 minutes
+			otherwise { SupportCalled unless (not {assentToSupportCalls})}
+
+	//r6_strict when DressingAbandoned then RetryAgreed within 30 minutes
+
+	r7 when DressingStarted and (({roomTemperature} < 16) or {userUnderDressed})
+	     	then DressingAbandoned within 2 minutes
+			 otherwise DressingComplete  within 1 minutes
+
+	r8 when UserFallen and {assentToSupportCalls} then not SupportCalled within 2 minutes
+rule_end
+
+concern_start
+	// it is undesirable to have an incomplete dressing action
+    	Dressingincomplete when DressingStarted then not DressingComplete eventually
+concern_end
+
+

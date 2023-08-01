@@ -1,0 +1,194 @@
+def_start
+    // events
+	event EnsureHumanCarerPresent
+	event InteractingWithNonPatients
+	event DetermineSensitivityLevel
+	event DetectUrgentHealthIssue
+	event InformEmergencyContactAndHealthOrgs
+	event ObtainEmergencyContact
+	event FirstMeetingUser
+	event UserDiscussingPrivateInfo
+	event DiscardInformation
+	event ChangeSubject
+	event InformUserPrivateInformation
+	event DesigningAgent
+	event InformUserOfLimitations
+	event DeployingAgent
+	event ReviewInteraction
+	event RecordFashionBasedOnOccasion
+	event RecommendOtherwise
+	event PersonAsksforData
+	event sharePersonalDataAndInformWhy
+	event UserSelfMedicates
+	event LogMedication
+	event InformCarer
+	event KeepLogOfFrequentActivities
+	event SuggestPerformingActions  
+	event UserInStress
+	event ShowEmpathy	
+    event OfferHelp
+	event CautionWhereOrWhenTouching
+	event UserExpressDiscomfort
+	event CloseDoor
+	event UserSaysStop
+	event RobotStop
+	event AskToFinishFirst
+	event CollectionStarted
+	event StoreMinInfo
+	event StopActivity
+	event CheckForandObtainProxy
+	event ObtainAssent
+	event AdmininisteringMedication
+	event InformUserandandReferToHumanCarer
+	event UserRequestInfo
+	event ProvideInfo
+	event InteractionStarted
+	event InformUserThisIsAgentnotHuman
+	event DressinginClotingX
+	event EmotionRecognitionDetected
+	event CurtainOpenRqt
+	event CurtainsOpened
+	event RefuseRequest
+	event InformUser
+	event DressingStarted
+	event CloseCurtains
+	event UserHasDifferentCulture
+	event EnsureDesiredLanguageAvailable
+    
+	// measures
+	measure userUnderDressed: boolean
+	measure medicalEmergency:boolean
+	measure userDistressed : scale(low, medium, high)
+	measure roomDark:boolean
+	measure notVisible:boolean
+	measure userAssent:boolean
+	measure consentGrantedwithinXmonths:boolean //X needs to be defined.	
+    measure competentIndicatorRequired: boolean
+	measure competentToGrantConsent:boolean
+	measure dressPreferenceTypeA:boolean
+	measure genderTypeB:boolean
+	measure userAdvices:boolean
+	measure clothingItemNotFound:boolean
+	measure userConfused:boolean
+	measure buildingFloor:scale(f1,f2,f3,f4,f5,f6,f7,f8,f9,f10) //the building has max 10 floors.
+	measure theUserHasBeenInformed:boolean
+	measure informationAvailable:boolean
+	measure informationDisclosureNotPermitted:boolean
+	measure userCompetenceIndicator:numeric
+	measure numTotalInteractions:numeric
+	measure userWantsHumanSubsequently:boolean
+	measure userWantsNoHuman:boolean
+	measure withholdingActivityPhysicalHarm:scale(low,moderate,severe)
+	measure consentGranted:boolean
+	measure consentIndicatorRequired:boolean
+	measure consentIndicatorisWithdrawn:boolean
+	measure consentIndicatorisRevoked:boolean
+	measure userRequiresAdaptiveClothing:boolean
+	measure contextuallyObvious:boolean
+	measure sensitiveInformationX:boolean
+	measure riskLevel:scale(r_low,r_moderate,r_severe)
+	measure unauthorizedPersonInRoom:boolean
+	measure medicationRisk:boolean
+	measure minimumFrequency:boolean
+	measure medicationAdverseEffects:boolean
+	measure irrelevant:boolean
+	measure userAdamant:boolean
+	measure clothingChoiceInappropriate:boolean
+	measure numDaysDeployed:numeric
+	measure numHoursDeployed:numeric
+	measure anthropomorphicNecessary:boolean
+	measure anthropomorphicAppearance:boolean
+    
+	// constants
+	constant N = 5
+def_end
+
+
+rule_start
+    Rule1 when CurtainOpenRqt then CurtainsOpened
+   	    	unless {userUnderDressed} then RefuseRequest
+   	    	unless ({userDistressed} > medium) then CurtainsOpened
+    Rule2 when DressingStarted then CloseCurtains
+   			unless {medicalEmergency}
+   			unless ({buildingFloor} >= f5)
+   			unless ({roomDark} and {notVisible})
+   			unless (not {userAssent})
+    Rule3 when EmotionRecognitionDetected and ({userDistressed} > medium) then InformUser
+   	   		 unless {consentGrantedwithinXmonths}
+   		 unless ((not {competentIndicatorRequired}) or (not {competentToGrantConsent}))
+    Rule4 when DressingStarted and ({dressPreferenceTypeA} and {genderTypeB}) then DressinginClotingX
+   			unless {userAdvices}
+   			unless {medicalEmergency}
+   			unless {clothingItemNotFound} then InformUser
+   			unless {userRequiresAdaptiveClothing}
+    Rule5  when InteractionStarted then InformUserThisIsAgentnotHuman
+   		 unless {medicalEmergency}
+   		 unless (not {userConfused})
+   		 unless {contextuallyObvious}
+   		 unless ({theUserHasBeenInformed} and (not {userConfused}))
+    Rule6 when UserRequestInfo then ProvideInfo
+   		 unless (not {informationAvailable}) then InformUserandandReferToHumanCarer
+   		 unless {informationDisclosureNotPermitted} then InformUserandandReferToHumanCarer
+   		 unless {sensitiveInformationX} then InformUserandandReferToHumanCarer
+     Rule7  when DressingStarted then ObtainAssent
+   		 unless ({userCompetenceIndicator} = N) then CheckForandObtainProxy
+   		 unless {medicalEmergency}
+   		 unless ({withholdingActivityPhysicalHarm} >= moderate)
+   		 unless {consentGranted}
+   		 unless (not {consentIndicatorRequired})
+   		 unless ({consentIndicatorisWithdrawn} or {consentIndicatorisRevoked}) then StopActivity
+
+Rule7_1 when AdmininisteringMedication then ObtainAssent
+   	 unless ({userCompetenceIndicator} = N) then CheckForandObtainProxy
+   	 unless {medicalEmergency}
+   	 unless ({withholdingActivityPhysicalHarm} >= moderate)
+   	 unless {consentGranted}
+   	 unless (not {consentIndicatorRequired})
+   	 unless ({consentIndicatorisWithdrawn} or {consentIndicatorisRevoked}) then StopActivity
+
+Rule8 when CollectionStarted then StoreMinInfo
+Rule9 when DressingStarted then CloseDoor
+   	 unless ({medicalEmergency} or {userAdvices})
+Rule10 when UserSaysStop then RobotStop
+   	  unless ({riskLevel} > r_low) then AskToFinishFirst
+Rule11_1 when UserInStress then ShowEmpathy
+Rule11_2 when UserInStress then OfferHelp
+Rule12 when DressingStarted then not CautionWhereOrWhenTouching
+   	 unless {medicalEmergency}
+Rule13 when UserExpressDiscomfort then RobotStop
+Rule14 when PersonAsksforData and ((not {consentGranted}) or {unauthorizedPersonInRoom})
+        	then not sharePersonalDataAndInformWhy
+Rule15 when UserSelfMedicates then LogMedication
+    	unless {medicationRisk} then InformUser
+   	 unless {medicationAdverseEffects} then InformCarer within 2 minutes
+Rule16 when InteractionStarted then KeepLogOfFrequentActivities
+Rule16_1 when KeepLogOfFrequentActivities and (not {minimumFrequency}) then SuggestPerformingActions
+Rule17 when InteractingWithNonPatients then DetermineSensitivityLevel
+Rule18 when DetectUrgentHealthIssue then InformEmergencyContactAndHealthOrgs
+Rule19 when FirstMeetingUser then ObtainEmergencyContact
+Rule20_1 when UserDiscussingPrivateInfo then InformUserPrivateInformation
+Rule20_1 when UserDiscussingPrivateInfo and {irrelevant} then DiscardInformation
+Rule20_2 when InformUserPrivateInformation then ChangeSubject
+Rule21 when DesigningAgent and ({anthropomorphicNecessary} or {anthropomorphicAppearance}) then InformUserOfLimitations
+Rule22 when DeployingAgent and (({numDaysDeployed} > 3) and ({numHoursDeployed} > 5)) then ReviewInteraction
+Rule23 when InteractionStarted then RecordFashionBasedOnOccasion
+Rule24 when DressingStarted and {clothingChoiceInappropriate}  then RecommendOtherwise
+   	 unless {userAdamant}
+Rule25 when UserHasDifferentCulture then EnsureDesiredLanguageAvailable
+Rule26 when InteractionStarted and ({numTotalInteractions} < 3) then EnsureHumanCarerPresent
+   	 unless {userWantsHumanSubsequently}
+   	 unless {userWantsNoHuman}
+rule_end
+
+concern_start
+// Privacy and data protection
+	c1 when PersonAsksforData and ((not {consentGranted}) or {unauthorizedPersonInRoom}) then sharePersonalDataAndInformWhy
+	// Autonomy and agency
+	//c2  when DressingStarted then not ObtainAssent
+	// Transparency and disclosure
+	c3 when UserDiscussingPrivateInfo and {irrelevant} then not DiscardInformation
+	// Cultural and social sensitivity
+	//c4 when DressingStarted and ({buildingFloor} < f5) then not CloseCurtains
+	// Prevent harm and safety
+	c5 when UserSaysStop and ({riskLevel} < r_moderate) then not StopActivity	
+concern_end

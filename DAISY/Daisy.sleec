@@ -1,0 +1,182 @@
+def_start
+	// Events
+	event MeetingPatient
+	event  RobotStopSession
+	event  UserEndSession
+	event AddressUserName
+	event UsePreferredName
+	event AddressSirOrMadam
+	event NotDisclosePersonalInformation 
+	event RequestHumanAgent
+	event EventX // please specify an event that initiates the case.
+	event Speaking
+	event UseChoicenLanguage
+	event UseDefaultasEnglish
+	event InstructionFail
+	event RepeatInstruction
+	event CallSupport
+	event UserRequestInfo
+	event ProvideInfo
+	event InformUserandandReferToHumanCarer
+	event AskRepresentativeForConsent
+	event PreparingExamination
+	event ObtainConsent
+	event ConfirmConsent
+	event PreparingTasks
+	event CheckUnderstanding
+	event UserUnderstands
+	event MeetingUser
+	event ExamineState
+	event ExaminingPatient
+	event ExaminationContinuable   
+	event EnsurePrivateSpace
+	event EnsureLegalPresence    
+	event NotTouchUnnecessarily
+	event IdentifyDAISYTrust
+	event determineThreshold
+	event selectDAISYProtocol
+	event ReferToHumanExaminer
+	event PresentingReport
+	event ProvideConfidenceLevel
+	event CollectPatientData
+	event TrainDaisy
+	event CollectingTrainingData
+	event informDaisyAbilities  // What Daisy can and cannot do
+	event CanEndSession
+	event CanCallHuman
+	event ApproachPatient
+
+	// measures
+	measure UserAge:numeric
+	measure userPayingAttention:boolean
+	measure userDataInformed:boolean
+	measure userSensoryNeedsMet:boolean
+	measure urgentNeed:boolean
+	measure severityOfState:numeric
+	measure stablePsychologicalState:boolean
+	measure timeElapsed:numeric //minutes
+	measure informationAvailable:boolean
+	measure informationDisclosureNotPermitted:boolean
+	measure languagePreferenceAvailable:boolean
+	measure directlyToUser:boolean
+	measure userConsentAvalaible:boolean
+	measure guardianConsentAvalaible:boolean
+	measure medicalEmergency:boolean
+	measure culturalIndicatorA:boolean
+	measure genderTypeB:boolean
+	measure userNameUnknown:boolean
+	measure userDirectsOtherwise:boolean
+	measure instructionRepeat:numeric
+	measure bodyPartInvolvedInExam:boolean
+	measure behaviorAggressive:boolean
+	measure dataNoiseConsidered:boolean
+	measure dataRelevantToContext:boolean
+	measure dataUnnecessary:boolean
+	measure trainingDataRepresentative:boolean
+	measure patientComfortable:boolean
+	measure patientAgeConsidered:boolean
+	measure patientXReligion:boolean
+	measure stablePhysicalState:boolean
+	measure UserUnableToConsent:boolean
+
+	// constants
+	constant legalAge = 18
+	constant StateThreshold = 100
+
+def_end
+
+rule_start
+	//address the user by their preferred name according to cultural type
+	Rule1 when AddressUserName then UsePreferredName
+		 unless {userNameUnknown} then AddressSirOrMadam
+		 unless {userDirectsOtherwise}
+	Rule2 when ProvideInfo then NotDisclosePersonalInformation
+		 unless {directlyToUser}
+		 unless {userConsentAvalaible}
+		 unless {medicalEmergency}
+	Rule3 when EventX and ({culturalIndicatorA} and {genderTypeB}) then RequestHumanAgent
+		 unless {userDirectsOtherwise} //here the user directs the otherwise for this specific case. should we have the same measures for this?
+		 unless {medicalEmergency}
+	Rule4 when Speaking then UseChoicenLanguage
+		 unless (not {languagePreferenceAvailable}) then UseDefaultasEnglish
+		 unless {userDirectsOtherwise}
+	Rule5 when UserRequestInfo then ProvideInfo
+			  unless ((not {informationAvailable}) or {informationDisclosureNotPermitted}) 
+						  then InformUserandandReferToHumanCarer
+
+	Rule6 when InstructionFail then RepeatInstruction
+			  unless (({instructionRepeat} >= 3) or ({timeElapsed} > 20)) then CallSupport
+	Rule7 when PreparingExamination then ObtainConsent
+			  unless ((not {UserUnableToConsent}) or ({UserAge} < legalAge)) then AskRepresentativeForConsent
+	Rule8 when PreparingTasks then ConfirmConsent
+	Rule9 when CheckUnderstanding and (({userPayingAttention} and {userDataInformed}) 
+			  and {userSensoryNeedsMet}) then UserUnderstands
+	// Identify the user's physical and psychological states. Examine the severity of those states.
+	Rule10 when MeetingUser then ExamineState
+	// If severity surpasses a certain threshold, avoid approaching them.
+	// Ensure that they have no urgent medical needs that need to be taken care of
+	Rule10_1 when ExamineState and ({severityOfState} > StateThreshold) then not ApproachPatient
+		  unless {urgentNeed}
+	// Examine if those states do not hinder the ability to consent and the reliability of the examination.
+	// Ensure that they are in a psychological state that does not compromise data collection
+	Rule10_2 when ExamineState and ({stablePsychologicalState} and {stablePhysicalState}) 
+					 then ExaminationContinuable
+	Rule11 when PreparingExamination then EnsurePrivateSpace
+				unless ({UserAge} < legalAge) then EnsureLegalPresence
+	Rule12 when ExaminingPatient then NotTouchUnnecessarily
+				unless {bodyPartInvolvedInExam}
+	Rule13 when MeetingUser then IdentifyDAISYTrust
+	Rule13_1 when IdentifyDAISYTrust then determineThreshold
+	Rule13_2 when determineThreshold then selectDAISYProtocol
+	Rule14 when ExaminingPatient and {behaviorAggressive} then ReferToHumanExaminer
+
+	Rule15 when PresentingReport and {dataNoiseConsidered}  then ProvideConfidenceLevel
+	Rule16 when ExaminingPatient and ({dataRelevantToContext}  and (not {dataUnnecessary}))
+	then CollectPatientData otherwise not CollectPatientData
+
+	Rule17 when CollectingTrainingData and {trainingDataRepresentative} then TrainDaisy
+	Rule18 when MeetingUser and ({patientComfortable} and {patientAgeConsidered}) then ExaminingPatient
+	Rule19 when MeetingUser and {patientXReligion} then not ExaminingPatient
+		 unless {userDirectsOtherwise}
+		 unless {medicalEmergency}
+	Rule20 when MeetingUser then informDaisyAbilities
+	Rule21 when ExaminingPatient then CanEndSession
+	Rule21_1 when ExaminingPatient then CanCallHuman
+
+rule_end
+
+concern_start
+	// privacy
+	c1 when UserRequestInfo and ({informationAvailable} and {informationDisclosureNotPermitted}) then ProvideInfo
+	// avoiding harm
+	c2 when UserEndSession then not RobotStopSession
+	// autonomy
+	c3 when MeetingPatient and ((not {patientComfortable}) or ((not {patientAgeConsidered}) and (not {guardianConsentAvalaible}))) then ExaminingPatient
+	// agency
+	c4 when ExaminingPatient and (not {bodyPartInvolvedInExam}) then not NotTouchUnnecessarily
+	// safety (accuracy)
+	c5 when MeetingUser and (not {trainingDataRepresentative})  then not CallSupport
+	// safety
+	c6 when ExaminingPatient and {behaviorAggressive} then not RobotStopSession
+concern_end
+
+purpose_start
+	// Daisy must be able to approach children.
+	p1  exists ApproachPatient and (not {patientAgeConsidered})
+	// Daisy must be able to refer a patient to a human examiner.
+    p2  exists ReferToHumanExaminer and (not {stablePsychologicalState})
+	// Daisy must be able to present a diagnostic report.
+	p3  exists PresentingReport 
+
+	// Daisy must be able to call for support when facing an emergency.
+	p4_1  exists CallSupport and {urgentNeed}
+	p4_2  exists CallSupport and {medicalEmergency}
+	// Daisy must be able to provide information to the patient.
+	p5  exists ProvideInfo and {informationAvailable}
+	// Daisy must be able to examine the patient.
+	p6  exists ExaminingPatient 
+	// Daisy must be able to select the right protocol.
+	p7  exists selectDAISYProtocol 
+	// Daisy must be able to collect patient data.
+	p8  exists CollectPatientData and (not {dataUnnecessary})
+purpose_end

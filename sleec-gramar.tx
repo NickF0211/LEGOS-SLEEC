@@ -1,0 +1,192 @@
+Specification:
+    "def_start" definitions+=Definition+ "def_end" ruleBlock=RuleBlock (concernBlock = ConcernBlock)? (purposeBlock = PurposeBlock)?
+;
+
+Defblock:
+    "def_start" definitions+=Definition+ "def_end"
+;
+
+Definition:
+    Event | Measure | Constant
+;
+
+Event:
+    "event" name=ID
+;
+
+Measure:
+    BoolMeasure | NumMeasure | ScalarMeasure
+;
+
+Constant:
+    "constant" name=ID "=" value=Value
+;
+
+Value:
+    value=INT | "->" constant=[Constant]
+;
+
+BoolValue:
+    "true" | "false"
+;
+
+Type:
+    Boolean | Numeric | Scale
+;
+
+BoolMeasure:
+    "measure" name=ID ":" type=Boolean;
+
+NumMeasure:
+    "measure" name=ID ":" type=Numeric;
+
+ScalarMeasure:
+    "measure" name=ID ":" type=Scale;
+
+Boolean:
+    "boolean"
+;
+
+Numeric:
+    "numeric"
+;
+
+Scale:
+    "scale" "(" scaleParams+=ScaleParam ("," scaleParams+=ScaleParam)* ")"
+;
+
+ScaleParam:
+    name=ID
+;
+
+RuleBlock:
+    "rule_start" rules+=Rule+ "rule_end"
+;
+
+Rule:
+    name=ID "when" trigger=Trigger ("and" condition=MBoolExpr)? "then" response=Response
+;
+
+Comment:
+  /\/\/.*$/
+;
+
+ConcernBlock:
+    "concern_start" concerns = Concern+ "concern_end"
+    ;
+
+Concern:
+    name=ID "exists" trigger=Trigger ("and" condition=MBoolExpr)? ("while" response=ExtendedResponse)? ("meanwhile" '(' next=Headless_Concern ')' )? |
+    name=ID "when" trigger=Trigger ("and" condition=MBoolExpr)? ("then" response=ExtendedResponse)? ("meanwhile" '(' next=Headless_Concern ')' )?
+;
+
+Headless_Concern:
+   "exists" trigger=Trigger ("and" condition=MBoolExpr)? ("while" response=ExtendedResponse)? ("meanwhile" '(' next=Headless_Concern ')' )? |
+    "when" trigger=Trigger ("and" condition=MBoolExpr)? ("then" response=ExtendedResponse)? ("meanwhile" '(' next=Headless_Concern ')' )?
+;
+
+PurposeBlock:
+    "purpose_start" purposes = Purpose+ "purpose_end"
+    ;
+
+Purpose:
+    name=ID "exists" trigger=Trigger ("and" condition=MBoolExpr)? ("while" response=ExtendedResponse)? ("meanwhile" '(' next=Headless_Concern ')' )?|
+    name=ID "when" trigger=Trigger ("and" condition=MBoolExpr)? ("then" response=ExtendedResponse)? ("meanwhile" '(' next=Headless_Concern ')' )?
+;
+
+Trigger:
+    event=[Event]
+;
+
+BoolExp:
+    BoolTerminal | Negation | BinaryOp;
+
+BoolTerminal:
+    value = BoolValue |  "{" ID=[BoolMeasure] "}";
+
+Negation:
+    "(" "not"  expr = BoolExp ")";
+
+BinaryOp:
+    BoolBinaryOp | NumericalOp | ScalarBinaryOp;
+
+ScalarBinaryOp:
+    "(" lhs = ScalarTerminal op = RelOp rhs=ScalarTerminal ")";
+
+ScalarTerminal:
+    "{" ID=[ScalarMeasure] "}" | value =[ScaleParam];
+
+BoolBinaryOp:
+    "(" lhs = BoolExp op = BoolOp rhs=BoolExp ")";
+
+NumericalOp:
+    "(" lhs = NumExp op = RelOp rhs=NumExp ")";
+
+NumExp:
+    NumTerminal | NumBinOp;
+
+NumTerminal:
+      value = Value | "{" ID=[NumMeasure] "}" | ID = [Constant]  ;
+
+NumBinOp:
+    "(" lhs = NumExp op = BinaryArth rhs = NumExp ")";
+
+BinaryArth:
+    "+" | "-" | "*" ;
+
+MBoolExpr:
+    BoolExp
+;
+
+ExtendedResponse:
+    head=Response ("while" next= ExtendedResponse)?
+;
+
+Response:
+   occ=Occ (alternative=Alternative)?  (nd=ND)? (defeater+=Defeater*)?
+;
+
+InnerResponse:
+    "{" occ=Occ (alternative=Alternative)? (nd=ND)? ( (defeater+=Defeater*) )? "}" |
+    occ=Occ  (alternative=Alternative)? (nd=ND)?
+;
+
+Occ:
+    neg?="not" event=Trigger (limit=TimeLimit)? (inf=INF)?;
+
+INF:
+    token = "eventually"
+;
+
+TimeLimit:
+    "within" end=TimeValue | "within" "[" start=TimeValue "," end=TimeValue "]" ;
+
+TimeValue:
+     value=NumExp unit=TimeUnit
+;
+
+Alternative:
+    "otherwise" response=InnerResponse;
+
+ND:
+    "else" response=InnerResponse;
+
+
+Defeater:
+    "unless" expr=MBoolExpr ("then" response=InnerResponse)?
+;
+
+RelOp:
+    "<=" | ">=" | "<>" | "<" | ">"  | "="
+;
+
+
+BoolOp:
+    "and" | "or"
+;
+
+TimeUnit:
+    "seconds" | "minutes" | "hours" | "days"
+;
+
+

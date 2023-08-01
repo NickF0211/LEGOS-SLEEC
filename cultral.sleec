@@ -1,0 +1,42 @@
+def_start
+  event LunchPeriodStarted
+  event InformUser
+  event UserFallen
+  event SupportCalled
+  event NoSafePath
+  event SoundWarning
+  event Wait
+  measure prayingTime:boolean
+  measure lastMealTime:numeric
+  measure personNotAssent:boolean
+  measure emergencyLevel: scale(s1,s2,s3,s4,s5)
+  measure personStressLevel: scale(light,moderate,strong)
+  constant MAX_TIME=8
+def_end
+
+rule_start
+  //Cultural: respect for religion & culture
+  Rule1 when LunchPeriodStarted and ({personStressLevel} > light) then
+             InformUser within 2 minutes
+             otherwise InformUser within 5 minutes
+             unless {prayingTime}
+             unless (not ({lastMealTime} > MAX_TIME))
+
+   Rule6 when LunchPeriodStarted  then
+             InformUser within 3 minutes
+             unless ({lastMealTime} > MAX_TIME)
+
+  //Ethical-Legal: privacy, emergency
+  Rule2 when UserFallen then SupportCalled
+             unless ({emergencyLevel} >= s1)
+
+  //Ethical-Legal: privacy, emergency
+  Rule5 when UserFallen then SupportCalled within 2 minutes
+             unless {personNotAssent} then not SupportCalled
+             unless ({emergencyLevel} >= s4)
+
+  rule_end
+
+concern_start
+    Csafety when UserFallen and {prayingTime} then not SupportCalled within 5 minutes
+concern_end

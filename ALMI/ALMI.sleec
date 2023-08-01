@@ -1,0 +1,156 @@
+def_start
+
+	// Events
+	event PreparingDeployment
+	event AgentDeployed
+	event MeetingUser    
+	event InformUser
+	event InformCaregiver
+	event CallEmergencyServices
+	event RemindLater
+	event AgentHasAppropriateAppearance
+	event AskForDetailLevelOfInstructions
+	event UseFirstPersonPluralLanguage
+	event CalibrateSpeech    
+	event RemindUserOfLimitations
+	// Safety
+	event AskForEmergencyContact
+	event HumanOnFloor
+	event SmokeDetectorAlarm
+	event OpenWindows
+	event FireSafetyMeasures
+	event AskUserIfOK
+	event InterfereSafely
+	event UserHasLimitation
+	event CheckTemperature
+	event FoodPreparation
+	event TrackTime    
+	event UserUnpredictable
+	event GiveUserDangerousObjects
+	// Cooking/kitchen related specifically
+	event MonitorMealTime
+	event BeforeCookingBegins
+	event UserWantsToCook
+	event AllowUserToCook
+	event GiveSuggestion
+	event GivingCookingInstructions
+	event ConsiderUserPractices
+	event UserChangeItemLocation
+	event UserChangeMind
+	event RecalculateApproach
+	// Privacy
+	event ProvideDataSummaries
+	event CollectandRecordInformation
+	event UpdateInformation
+	event ShowDataHistory
+	event UpdateMap
+
+	// measures
+	measure userOccupied: boolean
+	measure timeBetweenMeals: numeric
+	measure personAuthorized: boolean
+	measure dataNeedsChecking: boolean
+	measure userAsksForAppropriateTasks: boolean
+	measure userNeedsSpecialAccomodations: boolean
+	measure userDisablesAlarm: boolean
+	measure alarmRestarts: boolean
+	measure needLevel: scale(nlow, nmedium, nhigh)
+	measure humanAssents: boolean
+	measure safePathFound: boolean
+	measure hazardDetected: boolean
+	measure kitchenSafe: boolean
+	measure riskLevel: scale(low, medium, high)
+	measure alarmOn: boolean
+
+	// constants
+	constant maxTimeBetweenMeals = 28800 // is predetermined
+def_end
+
+rule_start
+	R1 when MonitorMealTime then InformUser within 10 minutes
+		unless {userOccupied} then RemindLater
+	// If the max time limit is exceeded, call the caregiver and inform them of the situation and in the meantime, suggest they have a snack.
+	R2 when AgentDeployed then TrackTime
+	R2_1 when TrackTime and ({timeBetweenMeals} > maxTimeBetweenMeals) then InformCaregiver
+	R2_2 when TrackTime and ({timeBetweenMeals} > maxTimeBetweenMeals) then GiveSuggestion
+	R3 when HumanOnFloor then CallEmergencyServices
+	   unless (not {humanAssents}) then not CallEmergencyServices
+
+	R4 when InterfereSafely and (not {safePathFound}) then InformUser
+	   unless {userOccupied}
+	R5 when UserWantsToCook then AllowUserToCook
+	R5_1 when AllowUserToCook and ({hazardDetected} or ({riskLevel} = high))
+	then InterfereSafely
+	R6 when UserHasLimitation then InformUser
+	R7 when UserWantsToCook then CheckTemperature
+	R7_1 when CheckTemperature and {hazardDetected} then InformUser
+	R8 when FoodPreparation then TrackTime
+	R8_1 when TrackTime then InformUser
+	R9 when MeetingUser then CollectandRecordInformation
+	R9_1 when AgentDeployed then UpdateInformation
+	R10 when GiveSuggestion then ConsiderUserPractices
+	R11 when MeetingUser then AskForEmergencyContact
+	R11_1 when AskForEmergencyContact then InformUser
+	R12 when AgentDeployed and (not {personAuthorized}) then not ShowDataHistory
+	R12_1 when ShowDataHistory and {dataNeedsChecking} then ProvideDataSummaries
+	R13 when UserUnpredictable then not GiveUserDangerousObjects
+	R14 when AgentDeployed and (not {userAsksForAppropriateTasks}) then RemindUserOfLimitations
+		unless ({needLevel} > nmedium)
+	R15 when PreparingDeployment then AgentHasAppropriateAppearance
+		unless {userNeedsSpecialAccomodations}
+	R16 when PreparingDeployment then CalibrateSpeech
+	R17 when GivingCookingInstructions then UseFirstPersonPluralLanguage
+	R17_1 when GivingCookingInstructions then InformUser //offer to repeat
+	R18 when BeforeCookingBegins then AskForDetailLevelOfInstructions
+	R19 when UserChangeMind then RecalculateApproach
+	    unless ({riskLevel} = high)
+	R20 when UserChangeItemLocation then UpdateMap
+	    unless ({riskLevel} = high) then InterfereSafely
+	R21 when SmokeDetectorAlarm then CallEmergencyServices within 5 minutes
+	    unless ({userDisablesAlarm} and (not {alarmRestarts})) then FireSafetyMeasures 
+	R21_1 when FireSafetyMeasures then OpenWindows
+	R21_2 when FireSafetyMeasures then AskUserIfOK
+	R21_3 when FireSafetyMeasures then InformCaregiver
+rule_end
+
+concern_start
+	// Safety
+    c1 when HumanOnFloor and ({userOccupied} and ({riskLevel} = high)) then not CallEmergencyServices
+    c2 when AllowUserToCook and ({hazardDetected} or ({riskLevel} = high))  then not  InterfereSafely
+    c3 when CheckTemperature and {hazardDetected} then not InformUser
+    c4 when SmokeDetectorAlarm and ((not {userDisablesAlarm}) or {alarmRestarts}) then not CallEmergencyServices within 2 minutes
+    c5 when FireSafetyMeasures then not OpenWindows
+	// Autonomy
+    c6 when UserWantsToCook then not AllowUserToCook
+    c7 when GivingCookingInstructions then not UseFirstPersonPluralLanguage
+    c8 when UserChangeMind and ({riskLevel} < high) then not RecalculateApproach
+	// Cultural sensitivity
+	c9 when GiveSuggestion then not ConsiderUserPractices
+	// Privacy
+	c10 when AgentDeployed and (not {personAuthorized}) then ShowDataHistory
+	// Security
+	c11 when ShowDataHistory and {dataNeedsChecking} then not ProvideDataSummaries
+concern_end
+
+purpose_start
+	pr1 exists PreparingDeployment
+	pr2 exists MeetingUser
+	pr3 exists InformUser
+	pr4 when SmokeDetectorAlarm and ({userDisablesAlarm} or {alarmRestarts}) then InformUser
+	pr5 exists RemindUserOfLimitations and ({userOccupied} and ({riskLevel} = high))
+	pr6 when HumanOnFloor and {humanAssents} then AskUserIfOK
+	pr7 when HumanOnFloor and ({riskLevel} = high) then CallEmergencyServices
+	pr8 when UserUnpredictable then AskUserIfOK
+    // Avoid sharing user’s personal information
+	p9 exists ShowDataHistory and {personAuthorized}
+    // Ensuring that the user gets fed
+    p10 exists InformUser and (not {userOccupied}) while MonitorMealTime
+    // Must be able to keep the user reasonably safe in the kitchen
+	p13 exists InformUser and {hazardDetected}
+	p14 exists InterfereSafely and ({hazardDetected} or ({riskLevel} = high))
+    // Respecting user’s autonomy when they request it
+	p15 exists UserChangeMind and ({riskLevel} < high)
+    // Must be able to connect user to help when needed
+	p16 exists CallEmergencyServices while HumanOnFloor
+	p17 exists CallEmergencyServices while SmokeDetectorAlarm
+purpose_end

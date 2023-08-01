@@ -1,0 +1,208 @@
+def_start
+	event DPAMade
+	// For DPA shall contain (i.e regarding completion)
+	// DPA initial terms
+	event EvaluateDPAProcess 		// Prior to starting processing
+	event StartDPAProcess 		// Process information started
+	event DPAComplete
+	event DPAIncomplete
+	// After DPA completion, events that can happen 
+	event DPATerminate 			// If DPA agreement has expired
+	event DPAUpdate 			// Making changes to agreement (after DPAComplete)
+	event ProcessPersonalData
+	event RemovePersonalData
+	// Events processor is doing for controller
+   	event EngageSubProcessor
+	event ChangeSubProcessor
+	event InformController 		// Concerning the addition or replacement of sub-processors
+	event AssistController
+	event ProvideControllerInformation 		
+	event ObtainControllerConsent 		// Obtain controller authorization
+
+	event InformSubject
+	event InformSupervisor
+	event TakeLiabilityForSubProcessor
+	event ImposeObligationsOnSubProcessor
+	// Events that happen to DPA
+	event DataBreach
+	event RightsRequested
+	event RespondToRequest
+	event AllowAudits
+	event HelpAuditors
+	event AuditsOccur //created
+	event EvaluateSecurity //created
+	event PassSecurity //created
+	event CanObjectToChange //created
+	// event DPACompliant //created
+
+	measure controllerID: boolean
+	measure controllerInfo: boolean
+	measure processorID: boolean
+	measure processorInfo: boolean
+	measure dpaPurpose: boolean 	
+	measure dpaNature: boolean		
+	measure dpaCategories: boolean
+	measure dpaLength: numeric 			// Length of DPA processing, i.e years
+	measure dpaActive: boolean 			// Whether or not the DPA agreement is active
+	measure dataCompliance: boolean 		
+	measure specificControllerAuth: boolean 	// Specific controller authorization
+	measure genControllerAuth: boolean		// General controller authorization
+	measure controllerInstructions: boolean 	// Controller gave processor instructor or not
+	measure rulesConform: boolean 		// If goes along with GDPR rules
+	measure personalData: boolean 		// Whether or not personal data exists
+	measure lawRequires: boolean			// Law requires processing without controller 
+	measure informingAllowed: boolean		// Processor allowed to inform Controller
+	measure confidentialityEnsured: boolean 	// Agreed to be confidential about personal data
+	measure securityEnsured: boolean 		// Security about personal data ensured 	  
+    measure measureTaken: boolean       		//TODO: to make it concrete
+	measure riskLevel: scale(low, medium, high)
+	measure typesOfRisk: scale(dataDestruction, dataLoss, dataAlter, unauthDataAccess)
+	measure auditorType: scale(controller, mandatedAuditor)
+	measure auditType: scale(audit, inspection)
+	measure art28Compliance: boolean		
+def_end
+
+rule_start
+	// Measures that need to be true (things DPA needs to contain) in order to be complete
+	// 1. The DPA shall contain at least one controller’s identity and contact details
+	// 2. The DPA shall contain at least one processor’s identity and contact details
+	// 4. The DPA shall contain the nature and purpose of the processing
+	// 5. The DPA shall contain the types of personal data
+	// 6. The DPA shall contain the categories of data subjects
+	R1 when DPAMade then DPAComplete
+	   unless (((((((not {controllerID}) or (not {controllerInfo})) or (not {processorInfo}))
+	   or (not {processorID})) or (not {dpaPurpose})) or (not {dpaNature})) or (not 	{dpaCategories})) then DPAIncomplete
+
+	// 3. The DPA shall contain the duration of the processing
+	R2 when DPAMade and (({dpaLength} > 0) or {dpaActive}) then DPAComplete
+	   otherwise DPATerminate
+	// 7. The processor shall not engage a sub-processor without a prior specific or general written authorization of the controller
+	R3 when DPAUpdate then EngageSubProcessor
+	   unless ((not {specificControllerAuth}) or (not {genControllerAuth})) then ObtainControllerConsent
+		
+	// 8. In case of general written authorization, the processor shall inform the controller of any intended changes concerning the addition or replacement of sub-processors
+	R4 when ChangeSubProcessor and {genControllerAuth} then InformController
+	// 9. The processor shall process personal data only on documented instructions from the controller
+	// 10. If the processor requires by Union or Member State law to process personal data without instructions and law does not prohibit informing the controller on grounds of public interest, the processor shall inform the controller of that legal requirement BEFORE processing
+	// 11. The processor shall ensure that persons authorized to process personal data have committed themselves to confidentiality or are under an appropriate statutory obligation of confidentiality
+	// 12. The processor shall take all measures required pursuant to Article 32 or to ensure the security of processing
+	R5 when StartDPAProcess and ((({controllerInstructions} and {personalData}) and {confidentialityEnsured}) and {securityEnsured}) then ProcessPersonalData
+	   unless ({lawRequires} and {informingAllowed}) then InformController
+	// When there is personalData to process, and you have informed controller, you can process
+	R6 when InformController and (({personalData} and {confidentialityEnsured}) and {securityEnsured}) then ProcessPersonalData
+	// 13. The processor shall assist the controller in fulfilling its obligation to respond to requests for exercising the data subject’s rights
+	// As a processor
+	R7 when RightsRequested then AssistController
+	// As a controller
+	R8 when RightsRequested then RespondToRequest
+	// 14. The processor shall assist the controller in ensuring the security of processing
+	// 17. The processor shall assist the controller in ensuring compliance with the obligations pursuant to data protection impact assessment
+	R9 when StartDPAProcess and ((not {securityEnsured}) or (not {dataCompliance}))
+	then AssistController
+	// 15. The processor shall assist the controller in notifying a personal data breach to the supervisory authority
+	// 16. The processor shall assist the controller in communicating a personal data breach to the data subject
+	R10 when DataBreach then InformSupervisor
+	R11 when DataBreach then InformSubject
+	// 18. The processor shall assist the controller in consulting the supervisory authorities prior to processing where the processing would result in a high risk in the absence of measures taken by the controller to mitigate the risk
+	R12 when EvaluateDPAProcess and ((not {measureTaken}) and ({riskLevel} = high))
+		then not StartDPAProcess
+	R13 when EvaluateDPAProcess and ((not {measureTaken}) and ({riskLevel} = high)) then InformSupervisor
+	// 19. The processor shall return or delete all personal data to the controller after the end of the provision of services relating to processing
+	R14 when StartDPAProcess and (({dpaLength} <= 0) or (not {dpaActive})) then RemovePersonalData
+	// 20. The processor shall immediately inform the controller if an instruction infringes the GDPR or other data protection provisions
+	R15 when StartDPAProcess and ({controllerInstructions} and (not {rulesConform})) then InformController
+	// 21. The processor shall make available to the controller information necessary to demonstrate compliance with the obligations Article 28 in GDPR
+	R16 when StartDPAProcess and (not {art28Compliance}) then ProvideControllerInformation
+	// 22. The processor shall allow for and contribute to audits, including inspections, conducted by the controller or another auditor mandated by the controller
+	R17 when AuditsOccur and (((({auditType} = audit) or ({auditType} = inspection)) or ({auditorType} = controller)) or ({auditorType} = mandatedAuditor)) then AllowAudits
+	R18 when AuditsOccur and (((({auditType} = audit) or ({auditType} = inspection)) or ({auditorType} = controller)) or ({auditorType} = mandatedAuditor)) then HelpAuditors
+	// 23. The processor shall impose the same obligations on the engaged sub-processors by way of contract or other legal act under Union or Member State law
+	R19 when EngageSubProcessor then ImposeObligationsOnSubProcessor
+	// come back to this and add legal act?
+	// 24. The processor shall remain fully liable to the controller for the performance of sub-processor’s obligations
+	R20 when EngageSubProcessor then TakeLiabilityForSubProcessor
+	// 25. When assessing the level of security, the processor shall take into account the risk of accidental or unlawful destruction, loss, alternation, unauthorized disclosure of or access to the personal data transmitted, stored or processed
+	R21 when EvaluateSecurity then PassSecurity
+		unless ({personalData} and ((((({typesOfRisk} = dataDestruction) or ({typesOfRisk} =  dataLoss))
+		or ({typesOfRisk} = dataAlter)) or ({typesOfRisk} = unauthDataAccess) ) and ({riskLevel} > low)))
+		then InformController
+
+	// 26. In case of general written authorization, the controller shall have the right to object to changes concerning the addition or replacement of sub-processors, after having been informed of such intended changes by the processor
+	R22 when InformController and {genControllerAuth} then CanObjectToChange
+rule_end
+
+concern_start
+	// The DPA is never completed
+	c1 when DPAMade and ({controllerID} and ({controllerInfo} and ({processorInfo} and ({processorID} and ({dpaPurpose} and ({dpaNature} and {dpaCategories})))))) then not DPAComplete
+	// The data processor (and/or sub-processors) keeps personal data after processing has been complete
+	c2 when StartDPAProcess and (({dpaLength} <= 0) or (not {dpaActive})) 
+	then not RemovePersonalData 
+	// The data processor (and/or sub-processors) did not ensure security of data prior to processing 
+	c3 when StartDPAProcess and ({controllerInstructions} and ({personalData} and ({confidentialityEnsured} and ({securityEnsured} and ((not {lawRequires}) and (not {informingAllowed})))))) then not ProcessPersonalData
+	// The controller shares personal data to an organization that is not an approved data processor
+	c4 when DPAUpdate and ((not {specificControllerAuth}) or (not {genControllerAuth})) then EngageSubProcessor
+	// The processor did not respond to requests for exercising the data subject’s rights
+	c5 when RightsRequested then not InformSubject
+	// The processor processed personal data even when processing would result in a high risk of a data breach
+	c6 when EvaluateDPAProcess and ((not {measureTaken}) and ({riskLevel} = high)) then StartDPAProcess
+	// The processor does not inform the controller if an instruction infringes the GDPR or other data protection provisions.
+	c7 when StartDPAProcess and ({controllerInstructions} and (not {rulesConform})) 
+	then not InformController
+	 // Does not inform subject of databreach
+	c8 when DataBreach then not InformSubject
+	// Passes security when evaluated, even if there is risk
+	c9 when EvaluateSecurity and ({personalData} and ((((({typesOfRisk} = dataDestruction) or ({typesOfRisk} =  dataLoss)) or ({typesOfRisk} = dataAlter)) or ({typesOfRisk} = unauthDataAccess)) and ({riskLevel} > low))) then PassSecurity
+	// Does not inform controller of changing (add/remove) subprocessor
+	c10 when ChangeSubProcessor and {genControllerAuth} then not InformController
+	// Does not allow audits even when there is an audit and auditor
+	c11 when AuditsOccur  and (((({auditType} = audit) or ({auditType} = inspection)) or ({auditorType} = controller)) or ({auditorType} = mandatedAuditor)) then not AllowAudits
+concern_end
+
+purpose_start
+	pr1 exists DPAMade
+	pr2 exists EvaluateDPAProcess 	
+	pr3 exists StartDPAProcess 		
+	pr4 exists DPAComplete
+	pr5 exists DPAIncomplete
+	pr6 exists DPATerminate 			
+	pr7 exists DPAUpdate 			
+	pr8 exists ProcessPersonalData
+	pr9 exists RemovePersonalData
+   	pr10 exists EngageSubProcessor
+	pr11 exists ChangeSubProcessor
+	pr12 exists InformController 		
+	pr13 exists AssistController
+	pr14 exists ProvideControllerInformation 		
+	pr15 exists ObtainControllerConsent 		
+	pr16 exists InformSubject
+	pr17 exists InformSupervisor
+	pr18 exists TakeLiabilityForSubProcessor
+	pr19 exists ImposeObligationsOnSubProcessor
+	pr20 exists DataBreach
+	pr21 exists RightsRequested
+	pr22 exists RespondToRequest
+	pr23 exists AllowAudits
+	pr24 exists HelpAuditors
+	pr25 exists AuditsOccur //created
+	pr26 exists EvaluateSecurity //created
+	pr27 exists PassSecurity //created
+	pr28 exists CanObjectToChange //created
+
+	// The purpose of the data subject is to preserve user privacy
+	P1 exists InformSupervisor while DataBreach
+	P2 exists InformSubject while DataBreach
+	P3 exists AssistController while RightsRequested
+	P4 exists ObtainControllerConsent while DPAUpdate
+	// The purpose of the data processor is to process personal data
+	P5 exists ProcessPersonalData and ((({controllerInstructions} and {personalData}) and {confidentialityEnsured}) and {securityEnsured}) while StartDPAProcess
+	P6 exists ProcessPersonalData and (({personalData} and {confidentialityEnsured}) and {securityEnsured}) while InformController
+	// A completed DPA must explicitly cover all GDPR provisions concerning data processing
+	P6 exists PassSecurity while EvaluateSecurity
+	P7 exists InformController and ({lawRequires} and {informingAllowed}) 
+	P8 exists StartDPAProcess and ({controllerInstructions} and (not {rulesConform}))
+	// The purpose of the DPA is to be complete
+	P9 exists DPATerminate while DPAIncomplete
+	P10 exists DPAComplete while DPAMade
+purpose_end
+
+

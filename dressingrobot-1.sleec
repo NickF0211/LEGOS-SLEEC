@@ -1,0 +1,33 @@
+def_start
+	event DressingStarted
+	event DressingComplete
+	event DressingAbandoned
+	event CurtainOpenRqt
+	event CurtainsOpened
+	event RefuseRequest
+	event UserFallen
+	measure userUnderDressed: boolean
+	measure roomTemperature: numeric
+	measure assentToSupportCalls:boolean
+	event SupportCalled
+	event RetryAgreed
+    measure userDistressed : scale(low, medium, high)
+	constant MAX_RESPONSE_TIME = 60
+def_end
+
+rule_start
+	Rule1 when DressingStarted then DressingComplete  within 2 minutes
+	unless ({roomTemperature} < 19) then DressingComplete within 90 seconds
+	unless ({roomTemperature} < 17) then DressingComplete within 60 seconds
+
+	Rule2 when CurtainOpenRqt then CurtainsOpened within 60 seconds
+		unless {userUnderDressed} then RefuseRequest within 30 seconds
+		unless ({userDistressed} > medium) then CurtainsOpened within 60
+	seconds
+
+   	Rule3  when UserFallen then SupportCalled unless (not {assentToSupportCalls})
+
+    Rule4 when DressingAbandoned then RetryAgreed within 30 minutes
+			otherwise { SupportCalled unless (not {assentToSupportCalls})}
+
+rule_end

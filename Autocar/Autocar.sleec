@@ -1,0 +1,220 @@
+def_start
+	// Events before driving starts
+	event UserTurnOnSystem
+	event UserTurnOffSystem
+	event TurnOnSensors
+	event TurnOffSensors
+	event CheckSystemComponents
+	event SystemReady
+	event TakeUserInput
+	event CalculateShortestPath
+	event ReadyToDrive
+	event GetReadyToDrive
+	event AskIfUserReadyToDrive
+	event DisplayCarInformation
+	// Events during driving
+	event CarDriving
+	event SlowDown			// But not stop completely
+	event TurnOnHazardsAndTemporarilyStop // Different than temporarily stopping just by hazards, i.e. situation is dangerous and we’re not just temporarily stopping for lights
+	event TemporarilyStopCar		// Different than parking, system not turned off
+	event ParkVehicle		// On road shoulder or parking area
+	// Parking also implies stopping car and turning of system
+	event DisplayError		// Error is internal, i.e car systems not properly working
+	event DisplayAlert 		// Alert is external, includes information
+	event DisplayRoute
+	event ChangeSpeed
+	event ChangeLanes
+	event ChangeCurrentDriving
+	event TakeNewInput
+	event TakeShortestPath
+	event MaintainEqualDistance
+	event StayCenteredinLane
+	event SeeTrafficLight
+	event WaitUntilChanges
+	event RecordPeople
+	// User requests related
+	event UserChangeRoute
+	event UserCancelPath
+	event UserRequestSpeedChange
+	event AskForClarification
+	// Priority vehicle related
+	event PriorityVehicleNearby
+	event MakeSpace			// Such as emergency corridor or use the shoulder
+
+	// Measures before driving starts
+	measure destinationExists: boolean
+	measure pathExists: boolean
+	// Events during driving
+	measure objectInPath: boolean		// Sth in front of car, i.e pedestrian, animal, stationary vehicle
+	measure carsInFront: boolean		// Moving thing in front
+	measure carsBehind: boolean
+	measure actionIsLegal: boolean
+	// User requests related
+
+	// Priority vehicle related
+	measure userRequestedLaneChange: boolean
+	measure ambulanceBehindCar: boolean
+	measure ambulanceOnOppositeSide: boolean
+	measure ambulanceNextToCar: boolean
+
+	measure environmentClear: boolean	// Other moving vehicles on road, either next to, in front, behind
+	measure riskLevel: scale(low, medium, high)
+	measure withinLane: boolean
+	measure multipleLanes: boolean		// Whether 1 lane or multiple
+	measure commandClear: boolean
+	measure laneExists: boolean
+	measure userTurnedOffSystem: boolean
+	measure recognizeInput: boolean
+	measure redLight: boolean
+	measure yellowLight: boolean
+	measure greenLight: boolean
+	measure previousLight: scale(red, yellow, green)
+	measure doorClosed: boolean
+	measure seatBeltOn: boolean
+	measure userSaysYes: boolean
+	measure peopleConsentObtained: boolean
+def_end
+
+rule_start
+	R1 when UserTurnOnSystem then TurnOnSensors
+	R1_cont when TurnOnSensors then CheckSystemComponents
+	R2 when SystemReady then TakeUserInput
+	R3 when TakeUserInput then CalculateShortestPath
+		unless ((not {destinationExists}) or (not {pathExists})) then DisplayError
+	R3_cont when CalculateShortestPath then DisplayRoute
+	R4 when UserRequestSpeedChange and {environmentClear} then ChangeSpeed
+        unless ({riskLevel} > low)
+        unless (not {actionIsLegal})
+
+	R5 when UserChangeRoute then CalculateShortestPath
+		unless (not {commandClear}) then AskForClarification
+		otherwise not ChangeCurrentDriving
+
+	R6 when UserCancelPath then ParkVehicle
+		unless ({riskLevel} > low) then WaitUntilChanges
+	R7 when CarDriving and ({carsInFront} and {carsBehind}) then MaintainEqualDistance
+	R8 when CarDriving and {objectInPath} then TemporarilyStopCar
+	unless ({riskLevel} > low) then ChangeLanes
+	unless (not {multipleLanes}) then TurnOnHazardsAndTemporarilyStop
+    unless (not {objectInPath}) then CarDriving
+	//invalid rules
+	R9 when CarDriving and {withinLane} then StayCenteredinLane
+    unless ({userRequestedLaneChange} and ({environmentClear} and ({riskLevel} = low)))
+    then ChangeLanes
+    unless ((not {withinLane}) or (not {laneExists})) then DisplayAlert
+	R10 when UserTurnOffSystem then ParkVehicle
+	R10_1 when ParkVehicle and {userTurnedOffSystem} then TurnOffSensors
+	R11 when PriorityVehicleNearby then DisplayAlert
+	R12 when PriorityVehicleNearby and ({ambulanceBehindCar} and (not {ambulanceOnOppositeSide}))
+		then ChangeLanes
+		unless ({ambulanceNextToCar} or (not {multipleLanes})) then MakeSpace
+		unless ({riskLevel} > low)
+	R13 when SeeTrafficLight and ({redLight} and {recognizeInput}) then TemporarilyStopCar
+		unless (not {redLight}) then TakeNewInput // unless is being used as an ‘until’ here
+	R14 when SeeTrafficLight and ({yellowLight} and {recognizeInput}) then SlowDown
+		unless (not {yellowLight}) then TakeNewInput
+		unless ({previousLight} = red) then GetReadyToDrive
+	R15 when SeeTrafficLight and ({greenLight} and {recognizeInput}) then CarDriving
+		unless {objectInPath} then WaitUntilChanges
+	R16 when SeeTrafficLight and (not {recognizeInput}) then SlowDown
+	R16_cont when SlowDown and {environmentClear} then CarDriving
+	// Rules 17 and 18 combined
+	R17 when SystemReady and (not (({doorClosed} or {seatBeltOn}) or {destinationExists}))
+	then DisplayAlert otherwise AskIfUserReadyToDrive
+
+	R19 when AskIfUserReadyToDrive and {userSaysYes} then CarDriving
+
+	R20 when SystemReady then DisplayCarInformation
+	R26 when UserTurnOffSystem then TurnOffSensors eventually 
+	R21 when CalculateShortestPath then TakeShortestPath
+	    unless ({riskLevel} > low)
+	    unless (not {actionIsLegal})
+	R22 when SystemReady then not RecordPeople
+	    unless {peopleConsentObtained}
+    R23 when SystemReady then not RecordPeople
+	    unless {peopleConsentObtained}
+rule_end
+
+concern_start
+	// Safety of the driver and of others in the environment
+	c1 when SystemReady and ((not {userSaysYes}) and (((not {doorClosed}) or (not{seatBeltOn})) or (not {destinationExists}))) then CarDriving
+	// Legal - road rules must be followed
+	c2 when SystemReady and (not {actionIsLegal}) then not ChangeCurrentDriving
+	c3 when SeeTrafficLight and ({redLight} and {recognizeInput}) then not TemporarilyStopCar
+	// Autonomy - user must remain in control as much as possible
+	c4 when SystemReady  and  ({doorClosed} and (({seatBeltOn} and  {destinationExists}) and (not {userSaysYes}))) then not AskIfUserReadyToDrive
+    c5 when AskIfUserReadyToDrive and (not {userSaysYes}) then CarDriving
+	// Privacy - use of cameras attached to car
+    c6 when CarDriving and (not {peopleConsentObtained}) then RecordPeople
+	// Accuracy - for deciding routes and destinations
+	c7 when TakeUserInput and ((not {destinationExists}) or (not {pathExists})) then not DisplayError
+	// Emergency vehicle related
+	c8 when PriorityVehicleNearby and ({ambulanceBehindCar} and ((not {ambulanceOnOppositeSide}) and ((not {ambulanceNextToCar}) and ( {multipleLanes} and  ({riskLevel}  < medium) )))) then not ChangeLanes
+
+
+
+
+	//autonomy
+    c9 when ReadyToDrive then not ReadyToDrive eventually
+    c10 when UserTurnOnSystem then TurnOffSensors
+    c11 when UserTurnOffSystem then not TurnOffSensors eventually
+
+    //privacy
+    c12 when ChangeSpeed and (not {peopleConsentObtained}) then RecordPeople
+concern_end
+
+purpose_start
+	pr1 exists UserTurnOnSystem
+    pr2 exists UserTurnOffSystem
+    pr3 exists TurnOnSensors
+    pr4 exists TurnOffSensors
+    pr5 exists CheckSystemComponents
+    pr6 exists SystemReady
+    pr7 exists TakeUserInput
+    pr8 exists CalculateShortestPath
+    pr9 exists ReadyToDrive
+    pr10 exists GetReadyToDrive
+    pr11 exists AskIfUserReadyToDrive
+    pr12 exists DisplayCarInformation
+    // Events during driving
+    pr13 exists CarDriving
+    pr14 exists SlowDown			// But not stop completely
+    pr15 exists TurnOnHazardsAndTemporarilyStop // Different than temporarily stopping just by hazards, i.e. situation is dangerous and we’re not just temporarily stopping for lights
+    pr16 exists TemporarilyStopCar		// Different than parking, system not turned off
+    pr17 exists ParkVehicle		// On road shoulder or parking area
+    // Parking also implies stopping car and turning of system
+    pr18 exists DisplayError		// Error is internal, i.e car systems not properly working
+    pr19 exists DisplayAlert 		// Alert is external, includes information
+    pr20 exists DisplayRoute
+    pr21 exists ChangeSpeed
+    pr22 exists ChangeLanes
+    pr23 exists ChangeCurrentDriving
+    pr24 exists TakeNewInput
+    pr25 exists TakeShortestPath
+    pr26 exists MaintainEqualDistance
+    pr27 exists StayCenteredinLane
+    pr28 exists SeeTrafficLight
+    pr29 exists WaitUntilChanges
+    pr30 exists RecordPeople
+    // User requests related
+        pr31 exists UserChangeRoute
+    pr32 exists UserCancelPath
+    pr33 exists UserRequestSpeedChange
+    pr35 exists AskForClarification
+        // Priority vehicle related
+    pr36 exists PriorityVehicleNearby
+    pr37 exists MakeSpace
+
+    // Safely transport user from A to B
+    P1 exists CarDriving and (({riskLevel} > low) and {actionIsLegal}) while TakeShortestPath
+    // Maintain user autonomy
+    P2 exists AskIfUserReadyToDrive and (({doorClosed} and {seatBeltOn}) and {destinationExists})
+    P3  exists DisplayCarInformation while SystemReady
+    // Ensure emergency vehicles are able to carry out their function without unreasonable impediment
+    P4  exists MakeSpace while PriorityVehicleNearby
+    // Enable user freedom of movement
+    P5  exists UserChangeRoute while CarDriving
+    P6  exists UserCancelPath while CarDriving
+    P7  exists UserRequestSpeedChange while CarDriving
+    P8  exists CarDriving and {userRequestedLaneChange}
+purpose_end

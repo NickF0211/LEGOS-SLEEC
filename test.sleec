@@ -1,0 +1,22 @@
+def_start
+        event OpenCurtainRequest
+        measure underDressed: boolean
+        event SignalOpenCurtain
+        event OpenCurtain
+        event LeavePatient
+        event UserFallen
+        event SupportCalled
+        event PatientFallen
+        event ProvideCompanionship
+        event CallSupport
+        measure patientNotDeaf:boolean
+    def_end
+
+    rule_start
+        //r5 when OpenCurtainRequest and (not {underDressed})
+        //then OpenCurtain within 30 minutes
+        //r11 when SupportCalled then not OpenCurtain within 40 minutes
+        r2 when PatientFallen then CallSupport
+	r3 when PatientFallen then ProvideCompanionship within 10 minutes unless {patientNotDeaf}
+        r4 when CallSupport then not ProvideCompanionship within 10 minutes
+    rule_end

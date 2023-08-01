@@ -1,0 +1,214 @@
+def_start
+	event InformUser
+	// resolve situational conflict add EVENT ********
+	event Alert
+	event RemindUser
+	// event GiveInformation - used to be in rule 4, now replaced with inform user
+	event FindInformation
+	event DetermineImportance
+	event UserDriving
+	event UserWantsControl
+	event UserEnters
+	event UserCanTurnOffSystem
+	event UserCanTurnOffMonitoring
+	event PreparingSystem
+	event SystemDriving
+	event SystemOn
+	event EnsureAlertness
+	event EnsureAccessibility
+	event EnsureAlertIndependence
+	event TrackMetrics
+	event SensorsConnect
+	event BaselineDiffers
+	event ConfirmWithUser
+	event ObtainConsentForUserDrive
+	event TrackVisionField
+	event ShowConsentForm
+	event CreateConsentForm
+	event TakeControlForSafety
+	// resolve purpose 1 ADD EVENT ****
+	event FirstInteractionUser
+	// resolve situation 8 ADD EVENT ****
+	event StopAutonomousComponent
+	// resolve concern 1
+	event StopUnfunctioningSensorAssistance
+	// resolve concern c4:
+	event SytemTakesOver
+
+    measure hearRateVariability: scale(low, medium, high)
+    measure eyeMovements: scale(low1, medium1, high1)
+    measure fullAttentionNeeded: boolean
+    measure properlyPlaced: boolean
+    measure informationImportant: boolean
+    measure health: boolean
+    measure hasLicense: boolean
+    measure substanceUse: boolean
+    measure commonLanguage: boolean
+    measure userUnderstands: boolean
+    measure sameCity: boolean
+    measure rulesFollowed: boolean
+    // RESOLVE SITUATION ADD measure
+    measure relevantObjectNearby: boolean
+    measure objectNearby: boolean
+    measure userNotice: boolean
+    measure blindSpot: boolean
+    measure obtainConsent: boolean
+    // RESOLVE CONCERN c2 add measure
+    measure removeFeatureConsent: boolean
+    //***********
+    measure needsAccomodation: boolean
+    measure userImpaired: boolean
+    measure warningSignalOff: boolean
+    measure userGivesControl: boolean
+    measure decisionPoint: boolean
+def_end
+
+rule_start
+
+
+	// *** Resolve redundancy: comment (MERGE, r1, r1-1, r1-2 (move to r2)) 
+	//R1 when UserDriving then EnsureAlertness
+
+	//R1_1 when EnsureAlertness then TrackMetrics
+
+	// Drowsiness detected
+	//R1_2 when TrackMetrics and (({hearRateVariability} = low) and ({eyeMovements} = low)) then InformUser
+    //********************************
+
+    R2 when UserDriving and {fullAttentionNeeded} then EnsureAlertness
+
+    R2_1 when EnsureAlertness then TrackMetrics
+    
+    //***** Resolve situational conflict, (REFINE rule + ADD event) 
+    //R2_2 when TrackMetrics and (({hearRateVariability} = low) and ({eyeMovements} = low)) then InformUser
+    R2_2 when TrackMetrics and (({hearRateVariability} = low) and ({eyeMovements} = low)) then Alert
+    //********************************
+
+    R3 when SensorsConnect and (not {properlyPlaced}) then InformUser
+
+	//********** Resolve situation 2, (DELETE a rule)
+    //R3_1 when SensorsConnect and (not {properlyPlaced}) then not UserDriving
+    //********************************
+
+	//R4 when UserDriving then not InformUser
+	//	unless {informationImportant}
+		
+		
+	// ***Resolve situation 3(REFINE)
+	//R4 when UserDriving then not InformUser
+	//	unless ({informationImportant} or (not {properlyPlaced}))
+	//*****************************************************************
+	// *** Resolve situation 4 (REFINE resolved rule)
+	//R4 when UserDriving then not InformUser
+	//	unless ({informationImportant} or ((not {properlyPlaced}) or {userImpaired}))
+	//*****************************************************************
+	// *** Resolve situation 6 (REFINE resolved rule)
+	//R4 when UserDriving then not InformUser
+	//	unless ({informationImportant} or ((not {properlyPlaced}) or ({userImpaired} or {relevantObjectNearby})))
+	//*****************************************************************
+	// *** Resolve situation 7 (REFINE resolved rule)
+	R4 when UserDriving then not InformUser
+		unless ({informationImportant} or ((not {properlyPlaced}) or ({userImpaired} or ({relevantObjectNearby} or ({blindSpot} and {objectNearby})))))
+	//*****************************************************************
+	
+
+	R5 when FindInformation then DetermineImportance
+
+    R6 when BaselineDiffers then ConfirmWithUser
+
+    R7 when UserWantsControl and (({health} and {hasLicense}) and (not {substanceUse})) then UserDriving
+    
+    //***** Resolving while concern c4 (add two rules)
+     R7_1 when UserWantsControl and ((((not {health}) or (not {hasLicense})) or {substanceUse}) and {obtainConsent}) then not UserDriving
+     R7_1 when UserWantsControl and ((((not {health}) or (not {hasLicense})) or {substanceUse}) and {obtainConsent}) then SytemTakesOver
+     //*******************************************
+
+    R8 when UserEnters and ({commonLanguage} and {userUnderstands})
+    then ObtainConsentForUserDrive
+
+    
+    //*** ** Resolve situation 5 ** (DELETE, merged with R9_2)
+   //R9 when UserEnters and (not {sameCity}) then InformUser
+   //********************************
+
+
+    //** Resolve purpose 2, refine existing rule (MERGE) **********
+   // R9_1 when InformUser then RemindUser within 10 minutes
+  
+    
+    R9_2 when InformUser and (not {rulesFollowed}) then RemindUser
+    
+    //***** RESOLVE SITUATION 7 (refine rule + add measure)
+
+    //R10 when UserDriving and ({objectNearby} and (not {userNotice})) then InformUser
+    
+    R10 when UserDriving and ({relevantObjectNearby} and (not {userNotice})) then InformUser
+   //********************************
+
+    //** Resolve purpose 2, refine existing rule (MERGE) **********
+
+    R11 when UserDriving then TrackVisionField
+
+    //R11_1 when TrackVisionField and {blindSpot} then InformUser
+    
+    //*************** While resolving situation 3, (REFINE R11_1)
+    R11_1 when TrackVisionField and ({blindSpot} and {objectNearby}) then InformUser 
+    //*************
+
+	//************* Resolve purpose 1 (REMOVE R12 + add event + add rule)
+    //R12 when UserEnters  then ShowConsentForm
+    
+
+
+    //R12_1 when ShowConsentForm and (not {obtainConsent}) then not UserDriving
+    
+    //**************** Resolve situation 8  (REFINE)
+    R12_1 when ShowConsentForm and (not {obtainConsent}) then StopAutonomousComponent
+   
+
+	R13 when PreparingSystem then CreateConsentForm
+	
+	// ADD a rule + EVent resolve purpose 1 *************88
+	R13b when FirstInteractionUser then ShowConsentForm
+	//************************************************
+
+	R14 when UserEnters and {needsAccomodation} then EnsureAccessibility
+
+	R15 when PreparingSystem then EnsureAlertIndependence
+
+	R16 when UserDriving and {userImpaired} then InformUser
+
+	R16_1 when UserDriving and {userImpaired} then TakeControlForSafety
+		unless {warningSignalOff}
+
+	R17 when SystemDriving and {decisionPoint} then UserDriving
+		unless {userGivesControl}
+
+	R18 when SystemOn then UserCanTurnOffSystem
+
+	R18_1 when SystemOn then UserCanTurnOffMonitoring
+	
+	//***** Resolve concern 1 : ADD event + add a rule R19
+	R19 when SystemDriving and  (not {properlyPlaced}) then  StopUnfunctioningSensorAssistance
+	
+	// ***** Resolve Concern c3  (ADD one rule) ****************************
+	R20  when SystemDriving and {removeFeatureConsent} then  StopUnfunctioningSensorAssistance 
+
+rule_end
+
+concern_start
+	c1 when SystemDriving and  (not {properlyPlaced}) then not StopUnfunctioningSensorAssistance 
+	c2 when SystemDriving and {removeFeatureConsent}  then not StopUnfunctioningSensorAssistance 
+	//c3 exists UserDriving and (({hearRateVariability} = low) and ({eyeMovements} = low)) 
+	c4 exists UserDriving and ({substanceUse} and {obtainConsent})
+concern_end
+
+purpose_start
+    p1 exists InformUser
+	p2 exists RemindUser
+	// event GiveInformation - used to be in rule 4, now replaced with inform user
+	p3 exists TakeControlForSafety
+	p4 when UserDriving and (({hearRateVariability} = low) and ({eyeMovements} = low))  then  InformUser
+	p6 when UserEnters and {obtainConsent} then not ShowConsentForm
+	p7 when InformUser and  {rulesFollowed} then not RemindUser within 10 minutes
+purpose_end

@@ -1,0 +1,22 @@
+def_start
+	event BatteryCritical
+	event SoundAlarm
+	measure temperature : numeric
+	measure personDetected : boolean
+	event GoHome
+	measure windSpeed: scale(light, moderate, strong)
+def_end
+
+rule_start
+	Rule1 when BatteryCritical then SoundAlarm
+	Rule2 when BatteryCritical and ({temperature} > 35) then SoundAlarm
+	Rule3 when BatteryCritical and (({temperature} > 35) or {personDetected}) then SoundAlarm
+	Rule4 when BatteryCritical then SoundAlarm unless {personDetected}
+	Rule5 when BatteryCritical then SoundAlarm
+		unless {personDetected} then GoHome
+	Rule6 when BatteryCritical then SoundAlarm within 1 seconds
+		otherwise GoHome
+	Rule7 when BatteryCritical then SoundAlarm
+		unless {personDetected} then GoHome
+		unless ({temperature} > 35)
+rule_end

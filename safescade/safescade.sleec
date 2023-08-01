@@ -1,0 +1,132 @@
+def_start
+	event InformUser
+	event RemindUser
+	// event GiveInformation - used to be in rule 4, now replaced with inform user
+	event FindInformation
+	event DetermineImportance
+	event UserDriving
+	event UserWantsControl
+	event UserEnters
+	event UserCanTurnOffSystem
+	event UserCanTurnOffMonitoring
+	event PreparingSystem
+	event SystemDriving
+	event SystemOn
+	event EnsureAlertness
+	event EnsureAccessibility
+	event EnsureAlertIndependence
+	event TrackMetrics
+	event SensorsConnect
+	event BaselineDiffers
+	event ConfirmWithUser
+	event ObtainConsentForUserDrive
+	event TrackVisionField
+	event ShowConsentForm
+	event CreateConsentForm
+	event TakeControlForSafety
+
+    measure hearRateVariability: scale(low, medium, high)
+    measure eyeMovements: scale(low1, medium1, high1)
+    measure fullAttentionNeeded: boolean
+    measure properlyPlaced: boolean
+    measure informationImportant: boolean
+    measure health: boolean
+    measure hasLicense: boolean
+    measure substanceUse: boolean
+    measure commonLanguage: boolean
+    measure userUnderstands: boolean
+    measure sameCity: boolean
+    measure rulesFollowed: boolean
+    measure objectNearby: boolean
+    measure userNotice: boolean
+    measure blindSpot: boolean
+    measure obtainConsent: boolean
+    measure needsAccomodation: boolean
+    measure userImpaired: boolean
+    measure warningSignalOff: boolean
+    measure userGivesControl: boolean
+    measure decisionPoint: boolean
+def_end
+
+rule_start
+
+
+	R1 when UserDriving then EnsureAlertness
+
+	R1_1 when EnsureAlertness then TrackMetrics
+
+	// Drowsiness detected
+	R1_2 when TrackMetrics and (({hearRateVariability} = low) and ({eyeMovements} = low)) then InformUser
+
+    R2 when UserDriving and {fullAttentionNeeded} then EnsureAlertness
+
+    R2_1 when EnsureAlertness then TrackMetrics
+
+    R3 when SensorsConnect and (not {properlyPlaced}) then InformUser
+
+    R3_1 when SensorsConnect and (not {properlyPlaced}) then not UserDriving
+
+	R4 when UserDriving then not InformUser
+		unless {informationImportant}
+
+	R5 when FindInformation then DetermineImportance
+
+    R6 when BaselineDiffers then ConfirmWithUser
+
+    R7 when UserWantsControl and (({health} and {hasLicense}) and (not {substanceUse})) then UserDriving
+
+    R8 when UserEnters and ({commonLanguage} and {userUnderstands})
+    then ObtainConsentForUserDrive
+
+    R9 when UserEnters and (not {sameCity}) then InformUser
+
+    R9_1 when InformUser then RemindUser within 10 minutes
+
+    R9_2 when InformUser and (not {rulesFollowed}) then RemindUser
+
+    R10 when UserDriving and ({objectNearby} and (not {userNotice})) then InformUser
+
+    R11 when UserDriving then TrackVisionField
+
+    R11_1 when TrackVisionField and {blindSpot} then InformUser
+
+    R12 when UserEnters then ShowConsentForm
+
+    R12_1 when ShowConsentForm and (not {obtainConsent}) then not UserDriving
+
+	R13 when PreparingSystem then CreateConsentForm
+
+	R14 when UserEnters and {needsAccomodation} then EnsureAccessibility
+
+	R15 when PreparingSystem then EnsureAlertIndependence
+
+	R16 when UserDriving and {userImpaired} then InformUser
+
+	R16_1 when UserDriving and {userImpaired} then TakeControlForSafety
+		unless {warningSignalOff}
+
+	R17 when SystemDriving and {decisionPoint} then UserDriving
+		unless {userGivesControl}
+
+	R18 when SystemOn then UserCanTurnOffSystem
+
+	R18_1 when SystemOn then UserCanTurnOffMonitoring
+
+rule_end
+
+concern_start
+	c1 exists UserDriving and  (not {properlyPlaced})
+	c2 exists UserDriving and (not {obtainConsent}) 
+	c3 exists UserDriving and (({hearRateVariability} = low) and ({eyeMovements} = low)) 
+	c4 exists UserDriving and {substanceUse}
+concern_end
+
+purpose_start
+    p1 exists InformUser
+	p2 exists RemindUser
+	// event GiveInformation - used to be in rule 4, now replaced with inform user
+	p3 exists TakeControlForSafety
+	p4 when UserDriving and (({hearRateVariability} = low) and ({eyeMovements} = low))  then  InformUser
+	p6 when UserEnters and {obtainConsent} then not ShowConsentForm
+	p7 when InformUser and  {rulesFollowed} then not RemindUser within 10 minutes
+purpose_end
