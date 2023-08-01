@@ -1,5 +1,4 @@
 from pysmt.fnode import FNode
-from termcolor import colored
 
 from analyzer import check_property_refining, clear_all
 from proof_reader import check_and_minimize
