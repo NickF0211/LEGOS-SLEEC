@@ -1,7 +1,7 @@
 import sys
 from os.path import dirname, join
 
-sys.path.append(join(dirname(dirname(__file__)), "Analyzer"))
+sys.path.append(join(dirname(__file__), "Analyzer"))
 import argparse
 from SleecNorm import check_situational_conflict
 from sleecParser import read_model_file, check_input_red, check_input_conflict, check_input_concerns, check_input_purpose
