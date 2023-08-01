@@ -1,7 +1,7 @@
 Instruction for launching N-Check:
 
 # N-check
-# This is the  repo for tool SLEECD
+# This is the  repo for tool N-Check
 
 ### prerequisite:
 1. Python 3.5 and later
