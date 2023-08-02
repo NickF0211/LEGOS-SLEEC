@@ -1,8 +1,10 @@
-Instruction for launching N-Check:
 
-# N-Tool, an implementation of N-check
-# This is the  repo for tool N-Tool
 
+# This is the supplementary material ICSE 2024 submission: Analyzing and Debugging Normative Requirements via Satisfiability Checking
+
+## This repo contains the supplementary material document: supplementary.pdf and the N-tool, the tool implementing our approach N-check
+
+# Instruction for launching N-Tool:
 ### prerequisite:
 1. Python 3.5 and later
 
