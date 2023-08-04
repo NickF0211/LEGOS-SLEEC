@@ -6,7 +6,7 @@
 ## This repo contains:
 - The supplementary material document: [supplementary.pdf](https://anonymous.4open.science/r/N-check-7218/supplementary.pdf)
 - N-tool implementing our approach N-check. Please refer to the instructions below for information on how to install it.
-- The [nine case studies](#Case Studies) used to evaluate N-tool.
+- The [nine case studies](#case-studies) used to evaluate N-tool.
 
 # Instruction for launching N-Tool:
 ### prerequisite:
