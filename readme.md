@@ -1,8 +1,11 @@
 
 
-# This is the supplementary material ICSE 2024 submission: Analyzing and Debugging Normative Requirements via Satisfiability Checking
+# Supplementary material for ICSE 2024 submission: 
+# Analyzing and Debugging Normative Requirements via Satisfiability Checking
 
-## This repo contains the supplementary material document: supplementary.pdf and the N-tool, the tool implementing our approach N-check
+## This repo contains:
+- the supplementary material document: [supplementary.pdf](https://anonymous.4open.science/r/N-check-7218/supplementary.pdf)
+- the tool implementing our approach N-check, N-tool. Please refer to the instructions below for information on how to install it.
 
 # Instruction for launching N-Tool:
 ### prerequisite:
