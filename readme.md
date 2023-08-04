@@ -4,8 +4,9 @@
 # Analyzing and Debugging Normative Requirements via Satisfiability Checking
 
 ## This repo contains:
-- the supplementary material document: [supplementary.pdf](https://anonymous.4open.science/r/N-check-7218/supplementary.pdf)
-- the tool implementing our approach N-check, N-tool. Please refer to the instructions below for information on how to install it.
+- The supplementary material document: [supplementary.pdf](https://anonymous.4open.science/r/N-check-7218/supplementary.pdf)
+- N-tool implementing our approach N-check. Please refer to the instructions below for information on how to install it.
+- The nine case studies used to evaluate N-tool. Please refer to the the bottom of the page for the case studies.
 
 # Instruction for launching N-Tool:
 ### prerequisite:
@@ -34,6 +35,6 @@ At this point, an UI window should have popped up.
 Edit the text in the window to customize your SLEEC rules
 
 ### Case Examples
-ALMI, ASPEN, Autocar, BSN, CSI, DAISY, dressingAssit,gdpr, safescade
+[ALMI](https://anonymous.4open.science/r/N-check-7218/ALMI/ALMI.sleec), [ASPEN](https://anonymous.4open.science/r/N-check-7218/ASPEN/aspen.sleec), [Autocar](https://anonymous.4open.science/r/N-check-7218/Autocar/Autocar.sleec), [BSN](https://anonymous.4open.science/r/N-check-7218/BSN/BSN.sleec), [CSI](https://anonymous.4open.science/r/N-check-7218/CSI/CSI.sleec), [DAISY](https://anonymous.4open.science/r/N-check-7218/DAISY/Daisy.sleec), [DressAssist](https://anonymous.4open.science/r/N-check-7218/dressingAssist/DRESSASSIST.sleec), [DPA](https://anonymous.4open.science/r/N-check-7218/gdpr/DPA.sleec), [SafeSCAD](https://anonymous.4open.science/r/N-check-7218/safescade/safescade.sleec)
 
 
