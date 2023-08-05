@@ -28,7 +28,7 @@
 7. `pip install idle`
     
 
-### Launch AutoCheck
+### Launch N-Tool
 `python3 sleecFrontEnd.py`
 
 At this point, an UI window should have popped up.
