@@ -37,14 +37,14 @@ Edit the text in the window to customize your SLEEC rules
 ### Case Studies
 Please find here, both the initial and corrected normative requirements collected for nine case studies.
 
-1. [ALMI](/Case-studies/ALMI.pdf) [(initial,](ALMI/ALMI.sleec)[ corrected)](ALMI/ALMI-Corrected.sleec)
-2. [ASPEN](/Case-studies/ASPEN.pdf) [(initial,](ASPEN/aspen.sleec)[ corrected)](ASPEN/aspen-corrected.sleec)
-3. [AutoCar](/Case-studies/AutoCar.pdf) [(initial,](Autocar/Autocar.sleec)[ corrected)](Autocar/Autocar-corrected.sleec)
-4. [BSN](/Case-studies/BSN.pdf) [(initial,](BSN/BSN.sleec)[ corrected)](BSN/BSN-corrected.sleec)
-5. [CSICobot](/Case-studies/CSICobot.pdf) [(initial,](CSI/CSI.sleec)[ corrected)](CSI/CSI-corrected.sleec)
-6. [DAISY](/Case-studies/DAISY.pdf) [(initial,](DAISY/Daisy.sleec)[ corrected)](DAISY/Daisy-corrected.sleec)
-7. [DPA](/Case-studies/DPA.pdf) [(initial,](gdpr/DPA.sleec)[ corrected)](gdpr/DPA-corrected.sleec)
-8. [DressAssist](/Case-studies/DressAssist.pdf) [(initial,](dressingAssist/DRESSASSIST.sleec)[ corrected)](dressingAssist/DRESSASSIST-corrected.sleec)
-9. [SafeSCAD](/Case-studies/SafeSCAD.pdf) [(initial,](safescade/safescade.sleec)[ corrected)](safescade/safescade-corrected.sleec)
+1. [ALMI](Case-studies/ALMI.pdf) [(initial,](ALMI/ALMI.sleec)[ corrected)](ALMI/ALMI-Corrected.sleec)
+2. [ASPEN](Case-studies/ASPEN.pdf) [(initial,](ASPEN/aspen.sleec)[ corrected)](ASPEN/aspen-corrected.sleec)
+3. [AutoCar](Case-studies/AutoCar.pdf) [(initial,](Autocar/Autocar.sleec)[ corrected)](Autocar/Autocar-corrected.sleec)
+4. [BSN](Case-studies/BSN.pdf) [(initial,](BSN/BSN.sleec)[ corrected)](BSN/BSN-corrected.sleec)
+5. [CSICobot](Case-studies/CSICobot.pdf) [(initial,](CSI/CSI.sleec)[ corrected)](CSI/CSI-corrected.sleec)
+6. [DAISY](Case-studies/DAISY.pdf) [(initial,](DAISY/Daisy.sleec)[ corrected)](DAISY/Daisy-corrected.sleec)
+7. [DPA](Case-studies/DPA.pdf) [(initial,](gdpr/DPA.sleec)[ corrected)](gdpr/DPA-corrected.sleec)
+8. [DressAssist](Case-studies/DressAssist.pdf) [(initial,](dressingAssist/DRESSASSIST.sleec)[ corrected)](dressingAssist/DRESSASSIST-corrected.sleec)
+9. [SafeSCAD](Case-studies/SafeSCAD.pdf) [(initial,](safescade/safescade.sleec)[ corrected)](safescade/safescade-corrected.sleec)
 
 
