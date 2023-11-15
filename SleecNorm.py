@@ -485,7 +485,7 @@ class Obligation:
     def blocked(self, trigger_measures, current_measure, A_Mapping):
         return exist(blocked_actions[self.head], lambda ba, self=self: AND(EQ(ba.time, trigger_measures.time), EQ(ba.end,
                                                                                                         self.get_deadline(trigger_measures)),
-                                                                           ba.time >= ba.end))
+                                                                           ba.time <= ba.end))
 
     def __str__(self):
         if not self.deadline.is_inf():
