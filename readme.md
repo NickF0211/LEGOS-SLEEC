@@ -1,6 +1,6 @@
 
 
-# Supplementary material for ICSE 2024 submission: 
+# Supplementary material for: 
 # Analyzing and Debugging Normative Requirements via Satisfiability Checking
 
 ## This repo contains:
