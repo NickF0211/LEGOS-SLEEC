@@ -5,10 +5,10 @@
 
 ## This repo contains:
 - The supplementary material document: [supplementary.pdf](supplementary.pdf)
-- N-tool implementing our approach N-check. Please refer to the [instructions](#instruction-for-launching-n-tool)  for information on how to install it.
-- The [nine case studies](#case-studies) used to evaluate N-tool.
+- LEGOS-SLEEC implementing our approach N-check. Please refer to the [instructions](#instruction-for-launching-n-tool)  for information on how to install it.
+- The [nine case studies](#case-studies) used to evaluate LEGOS-SLEEC.
 
-# Instruction for launching N-Tool:
+# Instruction for launching LEGOS-SLEEC:
 ### prerequisite:
 1. Python 3.5 and later
 
@@ -28,7 +28,7 @@
 7. `pip install idle`
     
 
-### Launch N-Tool
+### Launch LEGOS-SLEEC
 `python3 sleecFrontEnd.py`
 
 At this point, an UI window should have popped up.
