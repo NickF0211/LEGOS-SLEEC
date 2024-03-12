@@ -2,8 +2,10 @@ import derivation_rule
 from analyzer import check_property_refining, clear_all
 from logic_operator import *
 from proof_reader import check_and_minimize
+from sleecOp import EventRelation
 from sleecParser import isXinstance, read_model_file, mm, parse_definitions, constants, scalar_type, reset_rules, \
-    parse_rules, parse_concerns, get_high_light, find_relative_pos, registered_type, scalar_mask
+    parse_rules, parse_concerns, get_high_light, find_relative_pos, registered_type, scalar_mask, parse_relations, \
+    get_relational_constraints, clear_relational_constraints
 from pysmt.shortcuts import *
 
 from trace_ult import model_based_inst
@@ -13,10 +15,12 @@ blocked_actions = {}
 
 MAX_TIME_UNIT = 99999
 
+
 def reset_all():
     blocked_actions.clear()
     Constant.Constant_map.clear()
     Obligation.Obg_by_head.clear()
+
 
 class Term:
 
@@ -286,8 +290,6 @@ def snot(expr):
         return Negation(expr)
 
 
-
-
 def sor(left, right):
     if left is False:
         return right
@@ -343,7 +345,7 @@ class TimeWindow:
         return measure.time + start_time <= event_obj.time <= measure.time + end_time
 
     def encode_limited_pos(self, event_obj, measure, last_time):
-        return AND(measure.time + self.end.encode(measure) > last_time, NOT(self.encode(event_obj, measure)))
+        return AND(measure.time + self.end.encode(measure) <= last_time, NOT(self.encode(event_obj, measure)))
 
     def encode_limited_neg(self, event_obj, measure, last_time):
         return And(event_obj.time <= last_time
@@ -483,9 +485,11 @@ class Obligation:
         return self.parent.triggered(trigger_measures, current_measure, A_Mapping)
 
     def blocked(self, trigger_measures, current_measure, A_Mapping):
-        return exist(blocked_actions[self.head], lambda ba, self=self: AND(EQ(ba.time, trigger_measures.time), EQ(ba.end,
-                                                                                                        self.get_deadline(trigger_measures)),
-                                                                           ba.time <= ba.end))
+        return exist(blocked_actions[self.head],
+                     lambda ba, self=self: AND(EQ(ba.time, trigger_measures.time), EQ(ba.end,
+                                                                                      self.get_deadline(
+                                                                                          trigger_measures)),
+                                               ba.time <= ba.end))
 
     def __str__(self):
         if not self.deadline.is_inf():
@@ -679,7 +683,7 @@ class ObligationChain:
 
 class NormalizedRule:
 
-    def __init__(self, triggering_event: Event, oc: ObligationChain, og_rule= None):
+    def __init__(self, triggering_event: Event, oc: ObligationChain, og_rule=None):
         assert not triggering_event.neg
         self.triggering_event = triggering_event
         self.oc = oc
@@ -688,19 +692,16 @@ class NormalizedRule:
     def triggered(self, trigger_measures, current_measure, A_Mapping):
         return exist(A_Mapping[self.triggering_event.expr],
                      lambda trigger, self=self: AND(EQ(trigger.time, trigger_measures.time),
-                                         trigger_measures.time <= current_measure.time,
-                                          ))
-
+                                                    trigger_measures.time <= current_measure.time,
+                                                    ))
 
     def triggered_now(self, trigger_measures, current_measure, A_Mapping):
         return AND(exist(A_Mapping[self.triggering_event.expr],
-                     lambda trigger, current_measure=current_measure, self=self:
-                                AND(EQ(trigger.time, trigger_measures.time),
-                                         trigger_measures.time <= current_measure.time,
-                                          )),
+                         lambda trigger, trigger_measures=trigger_measures, current_measure=current_measure, self=self:
+                         AND(EQ(trigger.time, trigger_measures.time),
+                             trigger_measures.time <= current_measure.time,
+                             )),
                    self.oc.triggered(trigger_measures, current_measure, A_Mapping))
-
-
 
     def __str__(self):
         return "when {} then {}".format(str(self.triggering_event), str(self.oc))
@@ -731,18 +732,20 @@ class NormalizedRule:
     def encode_limited(self, cur_measure, A_Mapping, exception=None):
         if exception:
             return forall(A_Mapping[self.triggering_event.expr],
-                          lambda trigger, exception=exception:
+                          lambda trigger, cur_measure=cur_measure, exception=exception:
                           Implication(trigger.time <= cur_measure.time,
-                                                      exist(A_Mapping["Measure"],
-                                                            lambda t_measure, exception=exception: Implication(NEQ(exception, t_measure),
-                                                                                    self.oc.encode_limited(t_measure,
-                                                                                                     cur_measure,
-                                                                                                     A_Mapping)))))
+                                      exist(A_Mapping["Measure"],
+                                            lambda t_measure, cur_measure=cur_measure, exception=exception: Implication(
+                                                NEQ(exception, t_measure),
+                                                self.oc.encode_limited(t_measure,
+                                                                       cur_measure,
+                                                                       A_Mapping)))))
         else:
             return forall(A_Mapping[self.triggering_event.expr],
                           lambda trigger: Implication(trigger.time <= cur_measure.time,
                                                       exist(A_Mapping["Measure"],
-                                                            lambda t_measure: self.oc.encode_limited(t_measure, cur_measure,
+                                                            lambda t_measure: self.oc.encode_limited(t_measure,
+                                                                                                     cur_measure,
                                                                                                      A_Mapping))))
 
 
@@ -778,9 +781,12 @@ def parse_sleec_norm(model_file, read_file=True):
     else:
         concerns = []
 
+    if model.relBlock:
+        relations = parse_relations(model.relBlock, Action_Mapping)
+    else:
+        relations = []
 
-
-    return model, rules, Action_Mapping, Actions, og_rules, concerns
+    return model, rules, Action_Mapping, Actions, og_rules, concerns, relations
 
 
 def norm_parse_element(node, cond=None):
@@ -1097,19 +1103,18 @@ def blocked_axiom_interpret(current_measure, blocked_obj, A_Mapping, blocked_obg
             if not blocked_obg.neg:
                 termination = AND(c_obg.get_deadline(t_measure) >= blocked_obj.end)
                 follow_up = Implication(NOT(termination),
-                                   exist(type(blocked_obj),lambda block_obj1, block_obj=blocked_obj:
-                                         AND(EQ(block_obj1.end, block_obj.end),
-                                             block_obj1.time > blocked_obj.time)))
+                                        exist(type(blocked_obj), lambda block_obj1, block_obj=blocked_obj:
+                                        AND(EQ(block_obj1.end, block_obj.end),
+                                            block_obj1.time > blocked_obj.time)))
                 return AND(triggered, forced, follow_up)
             else:
                 c_obg_end = c_obg.get_deadline(t_measure)
                 termination = AND(c_obg_end <= blocked_obj.end, c_obg_end >= blocked_obj.time)
                 return AND(triggered, forced, termination)
 
-
         Measure = A_Mapping["Measure"]
-        return exist(Measure, lambda t_measure, c_measure = current_measure,
-                                                blocked_obg=blocked_obg:
+        return exist(Measure, lambda t_measure, c_measure=current_measure,
+                                     blocked_obg=blocked_obg, blocked_obj=blocked_obj:
         AND(
             LE(t_measure.time, blocked_obj.time),
             # Implication(blocked_obj.end > blocked_obj.time, c_measure.time >= t_measure.time),
@@ -1123,9 +1128,25 @@ def get_blocked_axioms(A_Mapping, current_measure):
     rules = []
     for obg in blocked_actions:
         blocked_obg = blocked_actions[obg]
-        rules.append(forall(blocked_obg, lambda ba, obg =obg, current_measure=current_measure:
+        rules.append(forall(blocked_obg, lambda ba, obg=obg, current_measure=current_measure:
         blocked_axiom_interpret(current_measure, ba, A_Mapping, obg)))
     return rules
+
+
+def process_conflict(relations):
+    for rel in relations:
+        if isinstance(rel, EventRelation) and rel.op == "conflict":
+            obg = Obligation(Event(rel.reference.rhs.name, neg=True), deadline=TimeWindow(Constant(0),  Constant(0)))
+            cobg =  Conditional_Obligation(True, obg)
+            obgc = ObligationChain([cobg])
+            nr = NormalizedRule(Event(rel.reference.lhs.name, neg=False), obgc, rel.reference)
+            nr.register_obligations()
+
+            obg = Obligation(Event(rel.reference.lhs.name, neg=True), deadline=TimeWindow(Constant(0), Constant(0)))
+            cobg = Conditional_Obligation(True, obg)
+            obgc = ObligationChain([cobg])
+            nr = NormalizedRule(Event(rel.reference.rhs.name, neg=False), obgc, rel.reference)
+            nr.register_obligations()
 
 
 def check_situational_conflict(model_str, multi_entry=False):
@@ -1133,14 +1154,14 @@ def check_situational_conflict(model_str, multi_entry=False):
     result = False
     adj_hl = []
     multi_output = []
-    model, rules, Action_Mapping, Actions, og_rules, concerns = parse_sleec_norm(model_str, read_file=False)
+    model, rules, Action_Mapping, Actions, og_rules, concerns, relations = parse_sleec_norm(model_str, read_file=False)
     for rule in rules:
         print(rule)
 
     Measure = Action_Mapping["Measure"]
     measure_inv = forall([Measure, Measure], lambda m1, m2: Implication(EQ(m1.time, m2.time), EQ(m1, m2)))
     add_blocked_obgs(Actions, rules)
-
+    process_conflict(relations)
     for r in rules:
         c_measure = Measure()
         if multi_entry:
@@ -1154,13 +1175,15 @@ def check_situational_conflict(model_str, multi_entry=False):
             if r != r_prime:
                 fol_rules.append(r_prime.encode_limited(c_measure, Action_Mapping))
             else:
-                fol_rules.append(r.encode_limited(c_measure, Action_Mapping, exception = c_measure))
+                fol_rules.append(r.encode_limited(c_measure, Action_Mapping, exception=c_measure))
 
         fol_rules.append(r.triggered_now(c_measure, c_measure, Action_Mapping))
         # head = r.oc.obligations[0]
         fol_rules.append(r.oc.blocked(c_measure, c_measure, Action_Mapping))
         fol_rules.append(measure_inv)
 
+        relations_constraints = get_relational_constraints(relations)
+        fol_rules.extend(relations_constraints)
         res = check_property_refining(AND(fol_rules), set(), set(),
                                       Actions, [], True,
                                       min_solution=False,
@@ -1169,25 +1192,27 @@ def check_situational_conflict(model_str, multi_entry=False):
                                       )
         if isinstance(res, tuple):
             trace, sat_model = res
-            inst_actions = model_based_inst(sat_model, Actions)
+            inst_actions = model_based_inst(sat_model, Actions, completeness=True, time=c_measure.time, measure_class=Measure)
 
             clear_all(Actions)
             reset_rules(og_rules)
             measure_inv.clear()
             derivation_rule.reset()
+            clear_relational_constraints(relations_constraints)
 
             reset_rules(og_rules)
             measure_inv.clear()
             derivation_rule.reset()
             rule_number = model.ruleBlock.rules.index(r.og_rule)
             target_rule = og_rules[rule_number]
-            res = check_property_refining(AND(target_rule.get_premise(), AND(AND(inst_actions), measure_inv)), [],  [r.get_rule() for r in og_rules] ,
+            res = check_property_refining(AND(target_rule.get_premise(), AND(AND(inst_actions), measure_inv)), [],
+                                          [r.get_rule() for r in og_rules] + get_relational_constraints(relations),
                                           Actions, [], True,
                                           min_solution=False,
                                           final_min_solution=True, restart=False, boundary_case=False,
                                           universal_blocking=False,
                                           record_proof=True)
-            if res == 0 :
+            if res == 0:
                 output += "Situational conflict under situation :\n{}\n".format(trace)
                 try:
                     result = True
@@ -1195,16 +1220,30 @@ def check_situational_conflict(model_str, multi_entry=False):
                     i = rule_number
                     print("UNSAT CORE")
                     reasons = []
+                    # for r in UNSAT_CORE:
+                    #     id = r.id
+                    #     if id == 0:
+                    #         adjust_index = i
+                    #     elif id > len(og_rules):
+                    #         continue
+                    #     else:
+                    #         adjust_index = id - 1
                     for r in UNSAT_CORE:
                         id = r.id
                         if id == 0:
                             adjust_index = i
+                            rule_model = model.ruleBlock.rules[adjust_index]
                         elif id > len(og_rules):
-                            continue
+                            if model.relBlock and id - 1 < len(model.relBlock.relations) + len(og_rules):
+                                adjust_index = id - 1
+                                rule_model = model.relBlock.relations[id - 1 - len(og_rules)]
+                            else:
+                                continue
                         else:
                             adjust_index = id - 1
+                            rule_model = model.ruleBlock.rules[adjust_index]
 
-                        rule_model = model.ruleBlock.rules[adjust_index]
+                        # rule_model = model.ruleBlock.rules[adjust_index]
                         # start, end = rule_model._tx_position, rule_model._tx_position_end
                         if adjust_index == i:
                             target = rule_model
@@ -1252,6 +1291,7 @@ def check_situational_conflict(model_str, multi_entry=False):
                     output += ("-" * 100 + '\n')
                     continue
             else:
+                # print(res)
                 rule_model = model.ruleBlock.rules[rule_number]
                 start, end = rule_model._tx_position, rule_model._tx_position_end
                 # output += "For rule:\n"
@@ -1263,8 +1303,10 @@ def check_situational_conflict(model_str, multi_entry=False):
         reset_rules(og_rules)
         measure_inv.clear()
         derivation_rule.reset()
+        clear_relational_constraints(relations)
 
     derivation_rule.reset()
+    clear_relational_constraints(relations)
     reset_all()
     scalar_mask.clear()
     scalar_type.clear()
@@ -1276,8 +1318,6 @@ def check_situational_conflict(model_str, multi_entry=False):
     else:
         return result, output, adj_hl
 
-
 # if __name__ == "__main__":
 #     model_str = read_model_file("/Users/nickfeng/SFAH19/runtime-verif/SleecFrontEnd/dressingrobot-3.sleec")
 #     check_situational_conflict(model_str)
-

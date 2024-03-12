@@ -1,5 +1,6 @@
 Specification:
     "def_start" definitions+=Definition+ "def_end" ruleBlock=RuleBlock (concernBlock = ConcernBlock)? (purposeBlock = PurposeBlock)?
+     (relBlock = RelBlock)?
 ;
 
 Defblock:
@@ -189,4 +190,57 @@ TimeUnit:
     "seconds" | "minutes" | "hours" | "days"
 ;
 
+EventRel:
+    rel=RelType lhs=[Event] rhs=[Event]
+;
+
+RelType:
+    "witness" | "mutualExclusive" | "equal" | "happenBefore"
+;
+
+MRelType:
+    "imply" | "mutualExclusive" | "iff" | "opposite"
+;
+
+
+MeasureRel:
+    ("measure" rel=MRelType lhs=MBoolExpr rhs=MBoolExpr)
+;
+
+MeasureInv:
+    "measure" "invariant" expr = MBoolExpr
+;
+
+Relation:
+    EventRel | MeasureRel | MeasureInv | Causation | Effect | EMRelation | Forbid
+;
+
+Causation:
+    "causation" cause=[Event] effect=MBoolExpr
+;
+
+Effect:
+    "includes" cause=[Event] effect=MBoolExpr
+;
+
+Forbid:
+    "forbid" cause=[Event] effect=MBoolExpr
+;
+
+EMRelation:
+    UntilEM | TimedEM
+;
+
+UntilEM:
+    "when" start_trigger=Trigger ("and" start_condition=MBoolExpr)? "then" inv=MBoolExpr ("until" end_trigger = Trigger)? ("and" end_condition=MBoolExpr)?
+;
+
+TimedEM:
+    "when" start_trigger=Trigger ("and" condition=MBoolExpr)? "then" inv=MBoolExpr "for" duration = TimeValue
+;
+
+
+RelBlock:
+    "relation_start" relations+=Relation+ "relation_end"
+;
 

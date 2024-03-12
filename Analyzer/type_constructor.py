@@ -11,7 +11,8 @@ attribute_variable_map = dict()
 
 exception_map = dict()
 
-def _polymorph_args_to_tuple( args):
+
+def _polymorph_args_to_tuple(args):
     """ Helper function to return a tuple of arguments from args.
 
     This function is used to allow N-ary operators to express their arguments
@@ -23,6 +24,7 @@ def _polymorph_args_to_tuple( args):
         args = args[0]
     return list(tuple(args))
 
+
 def _set_value(cur, name_tokens, value):
     if len(name_tokens) == 1:
         setattr(cur, name_tokens[0], value)
@@ -30,23 +32,28 @@ def _set_value(cur, name_tokens, value):
         new_cur = getattr(cur, name_tokens[0])
         _set_value(new_cur, name_tokens[1:], value)
 
+
 def set_value(g, names, value):
     name_tokens = names.split('.')
     return _set_value(g, name_tokens, value)
 
+
 def get_variables_by_type(type_name):
     return attribute_variable_map.get(type_name, OrderedSet())
+
 
 def add_variable_by_type(type_name, variable):
     target = get_variables_by_type(type_name)
     target.add(variable)
     attribute_variable_map[type_name] = target
 
+
 def get_action_name(action_id):
     if action_id == 1:
         return "access"
     elif action_id == 2:
         return "disclose"
+
 
 def union(*arg):
     args = _polymorph_args_to_tuple(arg)
@@ -61,18 +68,17 @@ def union(*arg):
 
     return UnionAction(result)
 
+
 class UnionAction():
     def __init__(self, args):
         self.actions = set(args)
-
-
 
 
 class Action():
     presence_counter = 0
     sym_presence = Symbol("action_presence", typename=BOOL)
 
-    def __init__(self, name = None):
+    def __init__(self, name=None):
         value = self.get_counter_update()
         if not name:
             self.token = "action_presence_{}".format(value)
@@ -106,7 +112,7 @@ class Action():
 
     def disable(self):
         self.is_disabled = True
-        self.presence  = FALSE()
+        self.presence = FALSE()
 
     def __gt__(self, other):
         return self._comparsion(other, GT)
@@ -120,7 +126,6 @@ class Action():
     def __le__(self, other):
         return self._comparsion(other, LE)
 
-
     def __repr__(self):
         return "A_{}".format(self.token)
 
@@ -128,7 +133,7 @@ class Action():
         return hash(self.__repr__())
 
 
-def create_type(type_name, type_dict = dict(), upper_bound=None, lower_bound=None, var_type=INT, enum = None):
+def create_type(type_name, type_dict=dict(), upper_bound=None, lower_bound=None, var_type=INT, enum=None):
     def num_constraint(var):
         if var_type == REAL:
             constructor = Real
@@ -140,6 +145,7 @@ def create_type(type_name, type_dict = dict(), upper_bound=None, lower_bound=Non
         if not lower_bound is None:
             constraint.append(GE(var, constructor(lower_bound)))
         return And(constraint)
+
     def string_constraint(var):
         if enum is None:
             return TRUE()
@@ -161,11 +167,13 @@ def create_type(type_name, type_dict = dict(), upper_bound=None, lower_bound=Non
     type_dict[type_name] = (var_type, constraint)
     return type_name
 
+
 def get_value_from_node(model, node):
     if isinstance(node, fnode.FNode):
         return model.get_py_value(node)
     else:
-        return  node
+        return node
+
 
 def get_or_create(model, key, map, key_type):
     v_map = map.get(key_type, None)
@@ -180,8 +188,9 @@ def get_or_create(model, key, map, key_type):
 
     return value
 
+
 def create_pair_action(action_name, attributes, constraint_dict):
-    action_new_name = "Requested_"+action_name
+    action_new_name = "Requested_" + action_name
     action_class = create_action(action_name, attributes, constraint_dict)
     request_class = create_action(action_new_name, attributes, constraint_dict)
     request_action_map[action_class] = request_class
@@ -195,10 +204,13 @@ def snap_shot(act_type):
 
 Delayed_Constraints = []
 Timed_dict = {}
+
+
 def get_timed_obj(time_var):
     if time_var in Timed_dict:
         return Timed_dict.get(time_var)
     assert False
+
 
 def add_timed_obj(time_var, obj):
     if time_var in Timed_dict:
@@ -208,8 +220,10 @@ def add_timed_obj(time_var, obj):
         new_set[type(obj)] = obj
         Timed_dict[time_var] = new_set
 
-#sub_action = [("name", "type", "mapping")]
-def create_action(action_name, attributes, constraint_dict, sub_actions = None, defines = None, inputs = None, abstraction=None):
+
+# sub_action = [("name", "type", "mapping")]
+def create_action(action_name, attributes, constraint_dict, sub_actions=None, defines=None, inputs=None,
+                  abstraction=None):
     if inputs is not None:
         attributes = attributes + inputs
     index_map = dict([(att_name, 0) for att_name, attr_type in attributes])
@@ -223,10 +237,10 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
     else:
         sub_action_names = [sub_name for (sub_name, _, _) in sub_actions]
 
-    def __init__(self, temp = False, input_subs = None, print_only = False):
+    def __init__(self, temp=False, input_subs=None, print_only=False):
         self.constraint = []
-        self.delayed_constraint =[]
-        #self.under_encoded = False
+        self.delayed_constraint = []
+        # self.under_encoded = False
 
         if temp:
             self.under_encoded = 0
@@ -237,7 +251,7 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
         self.min_var = None
 
         if input_subs is None:
-            input_subs  = {}
+            input_subs = {}
         '''
         if "time" in input_subs:
             value = input_subs.get("time")
@@ -252,9 +266,13 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
         if print_only:
             self.print_name = "p_{}_{}".format(action_name, type(self).print_only_index_map[attributes[0][0]])
         elif temp:
-            self.print_name = "t_{}_{}".format(action_name, type(self).temp_index_map[attributes[0][0]])
+            # self.print_name = "t_{}_{}".format(action_name, type(self).temp_index_map[attributes[0][0]])
+            self.print_name = "t_{}_{}".format(action_name,
+                                               max([type(self).temp_index_map[attribute[0]] for attribute in
+                                                    attributes]))
         else:
-            self.print_name = "{}_{}".format(action_name, type(self).index_map[attributes[0][0]])
+            self.print_name = "{}_{}".format(action_name,
+                                             max([type(self).index_map[attribute[0]] for attribute in attributes]))
 
         super(type(self), self).__init__(name=self.print_name)
 
@@ -266,20 +284,23 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
                 self.constraint.append(type_constraint(getattr(self, attr)))
             else:
                 if print_only:
-                    variable = Symbol("p_{}_{}_{}".format(action_name, self.get_index_update(attr, print_only=True), attr),
-                                      typename=var_type)
+                    variable = Symbol(
+                        "p_{}_{}_{}".format(action_name, self.get_index_update(attr, print_only=True), attr),
+                        typename=var_type)
                     setattr(self, attr, variable)
                     self.constraint.append(type_constraint(getattr(self, attr)))
 
                 elif temp:
-                    variable = Symbol("t_{}_{}_{}".format(action_name, self.get_index_update(attr, temp=True), attr), typename=var_type)
+                    variable = Symbol("t_{}_{}_{}".format(action_name, self.get_index_update(attr, temp=True), attr),
+                                      typename=var_type)
                     setattr(self, attr, variable)
                     self.constraint.append(type_constraint(getattr(self, attr)))
 
                 else:
-                    variable = Symbol("{}_{}_{}".format(action_name, self.get_index_update(attr), attr), typename=var_type)
+                    variable = Symbol("{}_{}_{}".format(action_name, self.get_index_update(attr), attr),
+                                      typename=var_type)
                     setattr(self, attr, variable)
-                    self.constraint.append(type_constraint(getattr(self,attr)))
+                    self.constraint.append(type_constraint(getattr(self, attr)))
 
         if sub_actions is not None:
             for act_name, action_type, variable_mapping in sub_actions:
@@ -298,30 +319,31 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
                             try:
                                 value = value_func(self)
                                 sub_input_subs[input_var] = value
-                                #setattr(sub_action_obj, input_var, value_func(self))
+                                # setattr(sub_action_obj, input_var, value_func(self))
                             except AttributeError:
                                 sub_exception_subs[input_var] = value_func
                     else:
                         for key, value_func in variable_mapping.items():
                             try:
-                                sub_input_subs[key] =  value_func(self)
-                                #setattr(sub_action_obj, key, value_func(self))
+                                sub_input_subs[key] = value_func(self)
+                                # setattr(sub_action_obj, key, value_func(self))
                             except AttributeError:
                                 sub_exception_subs[key] = value_func
 
                 sub_action_obj = action_type(temp=temp, input_subs=sub_input_subs)
-                #sub_action_obj.time = self.time  # sync in time
-                #sub_action_obj.presence = self.presence  # syn in presence
-                #add the failed assignment as constraints
+                # sub_action_obj.time = self.time  # sync in time
+                # sub_action_obj.presence = self.presence  # syn in presence
+                # add the failed assignment as constraints
                 for key, value_func in sub_exception_subs.items():
-                    self.delayed_constraint.append(lambda key=key, current=sub_action_obj, parent =self, value_func = value_func :
-                                                   Equals(getattr(current, key), value_func(parent)))
+                    self.delayed_constraint.append(
+                        lambda key=key, current=sub_action_obj, parent=self, value_func=value_func:
+                        Equals(getattr(current, key), value_func(parent)))
                 setattr(self, act_name, sub_action_obj)
 
         if defines is not None:
             for name, value_func in defines:
                 set_value(self, name, value_func(self))
-                #setattr(self, name, value_func(self))
+                # setattr(self, name, value_func(self))
 
         if not print_only:
             if not temp:
@@ -364,8 +386,8 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
 
     def model_projection(self, model):
         input_subs = dict(
-        [ (attr, model[getattr(self, attr)]) for attr, _ in
-         attributes] + [("presence", TRUE())])
+            [(attr, model[getattr(self, attr)]) for attr, _ in
+             attributes] + [("presence", TRUE())])
         return type(self)(input_subs=input_subs)
 
     def make_permanent(self):
@@ -378,17 +400,17 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
 
     def sync_time(self):
         for child_action_name in type(self).sub_action_names:
-            getattr(self,child_action_name).time = self.time
+            getattr(self, child_action_name).time = self.time
             getattr(self, child_action_name).sync_time()
 
-    def get_index_update(self, key, temp= False, print_only = False):
+    def get_index_update(self, key, temp=False, print_only=False):
         if print_only:
             target_map = type(self).print_only_index_map
         elif temp:
             target_map = type(self).temp_index_map
         else:
             target_map = type(self).index_map
-        if (key not in  target_map.keys()):
+        if (key not in target_map.keys()):
             print("strange update")
             return
         res = target_map.get(key, 0)
@@ -396,10 +418,11 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
         return res
 
     def sym_subs(self, other, context):
-        subs_dict = dict([(getattr(self, attr), getattr(other, attr)) for attr, _ in attributes ] + [(self.presence, other.presence)])
+        subs_dict = dict(
+            [(getattr(self, attr), getattr(other, attr)) for attr, _ in attributes] + [(self.presence, other.presence)])
         return substitute(context, subs_dict)
 
-    def build_eq_constraint(self, other, consider_time = True, exceptions=None):
+    def build_eq_constraint(self, other, consider_time=True, exceptions=None):
         if exceptions is None:
             exceptions = OrderedSet()
         if not consider_time:
@@ -426,10 +449,9 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
         return dependent
 
     def get_all_variables(self):
-        res = [ getattr(self, attr) for attr, _ in attributes]
+        res = [getattr(self, attr) for attr, _ in attributes]
         res.append(self.presence)
         return res
-
 
     # def __repr__(self):
     #     pars = "({})".format(', '.join([str(getattr(self, attr)) for attr, _ in attributes if attr != "time"]))
@@ -441,29 +463,34 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
 
     def print_with_context(self, context_map):
         interests = context_map.get(type(self), OrderedSet())
-        important_args = ["?{}:Nat".format(getattr(self, attr) ) for attr, _ in attributes if attr in interests]
-        content = (' '.join(important_args)) if len(important_args) > 0 else  "..."
-        pars = "{action_name} {content}".format(action_name = action_name.upper()   , content = content)
-        #time_s = "@{time} {action_name}".format(time=self.time if self.time in context else "*", action_name=action_name)
+        important_args = ["?{}:Nat".format(getattr(self, attr)) for attr, _ in attributes if attr in interests]
+        content = (' '.join(important_args)) if len(important_args) > 0 else "..."
+        pars = "{action_name} {content}".format(action_name=action_name.upper(), content=content)
+        # time_s = "@{time} {action_name}".format(time=self.time if self.time in context else "*", action_name=action_name)
         return pars
 
     def extract_mentioned_attributes(self, context):
-        return  set([attr for attr, _ in attributes  if getattr(self, attr) in context])
+        return set([attr for attr, _ in attributes if getattr(self, attr) in context])
 
-    def get_record(self, model, debug=True, mask = None):
+    def get_record(self, model, debug=True, mask=None):
         if debug:
             pars = "({})".format(', '.join(
-                ["{}={}".format(str(getattr(self, attr)), str(model.get_py_value(getattr(self, attr)))) for attr, _ in attributes if
+                ["{}={}".format(str(getattr(self, attr)), str(model.get_py_value(getattr(self, attr)))) for attr, _ in
+                 attributes if
                  attr != "time"]))
-            time_s = "@ {time}: {action_name} = {action_id} ".format(time=model.get_py_value(self.time), action_name=action_name, action_id = self.presence)
+            time_s = "@ {time}: {action_name} = {action_id} ".format(time=model.get_py_value(self.time),
+                                                                     action_name=action_name, action_id=self.presence)
             return time_s + pars
         else:
-            pars = "({})".format(', '.join(["{}={}".format(attr, str(get_masked_value(mask, attr_type, model.get_py_value(getattr(self, attr))))) for attr, attr_type in attributes if attr != "time"]))
+            pars = "({})".format(', '.join(
+                ["{}={}".format(attr, str(get_masked_value(mask, attr_type, model.get_py_value(getattr(self, attr)))))
+                 for attr, attr_type in attributes if attr != "time"]))
             if hasattr(self, "time"):
-                time_s = "at time {time}: {action_name}".format(time=model.get_py_value(self.time), action_name=action_name)
+                time_s = "at time {time}: {action_name}".format(time=model.get_py_value(self.time),
+                                                                action_name=action_name)
             else:
                 time_s = "{action_name}".format(action_name=action_name)
-            return time_s+pars
+            return time_s + pars
 
     def model_equal(self, model, other):
         if model.get_py_value(self.presence) != model.get_py_value(other.presence):
@@ -473,30 +500,32 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
                 return False
         return True
 
-    def get_model_record(self, model, translation_map,  is_readable=False, is_abstract= False):
+    def get_model_record(self, model, translation_map, is_readable=False, is_abstract=False):
         def map(var):
             if is_abstract and var.is_symbol():
-                name ="{}_abstracted".format(var.symbol_name())
-                exists =  get_env().formula_manager.symbols.get(name, None)
-                if  exists  is None:
-                    return  var
+                name = "{}_abstracted".format(var.symbol_name())
+                exists = get_env().formula_manager.symbols.get(name, None)
+                if exists is None:
+                    return var
                 else:
                     return exists
             else:
                 return var
 
-
         divider = ' ' if is_readable else ' !IDS_OF '
         time_divider = " " if is_readable else ' !IDS_OF '
         pars = "{})".format(divider.join(["({}, {})".format(attr.upper(),
-                                                                 str(get_or_create(model, model.get_py_value(map(getattr(self, attr))),
-                                                                                   translation_map,
-                                                                                   type(self).args_to_type.get(attr)))) for attr, _ in attributes if attr != "time"]))
-        time_s = "{action_name}{div1}(TIME, {time}){div2}".format(div1 = time_divider, div2= divider, time=model.get_py_value(map(self.time)), action_name=action_name)
-        return time_s+pars
+                                                            str(get_or_create(model, model.get_py_value(
+                                                                map(getattr(self, attr))),
+                                                                              translation_map,
+                                                                              type(self).args_to_type.get(attr)))) for
+                                          attr, _ in attributes if attr != "time"]))
+        time_s = "{action_name}{div1}(TIME, {time}){div2}".format(div1=time_divider, div2=divider,
+                                                                  time=model.get_py_value(map(self.time)),
+                                                                  action_name=action_name)
+        return time_s + pars
 
-
-    action_class = type(action_name, (Action,),{
+    action_class = type(action_name, (Action,), {
         "action_name": action_name,
         "args_to_type": args_to_type,
         "index_map": index_map,
@@ -507,35 +536,36 @@ def create_action(action_name, attributes, constraint_dict, sub_actions = None, 
         "type_inputs": inputs,
         "under_approx_counter": 0,
         "under_approx_vars": under_approx_vars,
-        "collect_list" : [],
+        "collect_list": [],
         "temp_collection_set": OrderedSet(),
         "syn_collect_list": [],
-        "additional_constraint" : [],
-        "snap_shot":[],
-        "EQ_CLASS" : [OrderedSet()],
-        "Uncollected" : OrderedSet(),
+        "additional_constraint": [],
+        "snap_shot": [],
+        "EQ_CLASS": [OrderedSet()],
+        "Uncollected": OrderedSet(),
         "__init__": __init__,
         "get_index_update": get_index_update,
         "make_permanent": make_permanent,
-        "sync_time":sync_time,
+        "sync_time": sync_time,
         "sym_subs": sym_subs,
         "context_dependent_variable": context_dependent_variable,
         "get_all_variables": get_all_variables,
         # # "__repr__": __repr__,
         # "__hash__": __hash__,
         "print_with_context": print_with_context,
-        "model_projection":model_projection,
+        "model_projection": model_projection,
         "extract_mentioned_attributes": extract_mentioned_attributes,
         "get_record": get_record,
         "get_model_record": get_model_record,
         "build_eq_constraint": build_eq_constraint,
-        "model_equal":model_equal,
-        "under_constraint":under_constraint,
-         "inv": [],
+        "model_equal": model_equal,
+        "under_constraint": under_constraint,
+        "inv": [],
         "threshold": 5,
         "increase_ratio": 10
     })
     return action_class
+
 
 def get_varaible(var):
     if var.is_symbol():
@@ -545,10 +575,9 @@ def get_varaible(var):
         if res is not None:
             return res
         else:
-            abstracted_symbol= Symbol("{}_abstracted".format(len(exception_map.keys())), INT)
+            abstracted_symbol = Symbol("{}_abstracted".format(len(exception_map.keys())), INT)
             exception_map[var] = abstracted_symbol
             return abstracted_symbol
-
 
 
 def get_masked_value(mask, type, value):
