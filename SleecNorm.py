@@ -345,7 +345,7 @@ class TimeWindow:
         return measure.time + start_time <= event_obj.time <= measure.time + end_time
 
     def encode_limited_pos(self, event_obj, measure, last_time):
-        return AND(measure.time + self.end.encode(measure) <= last_time, NOT(self.encode(event_obj, measure)))
+        return AND(measure.time + self.end.encode(measure) > last_time, NOT(self.encode(event_obj, measure)))
 
     def encode_limited_neg(self, event_obj, measure, last_time):
         return And(event_obj.time <= last_time
