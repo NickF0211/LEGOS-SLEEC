@@ -1102,11 +1102,12 @@ def blocked_axiom_interpret(current_measure, blocked_obj, A_Mapping, blocked_obg
             forced = c_obg.forced(t_measure, c_measure, A_Mapping)
             if not blocked_obg.neg:
                 termination = AND(c_obg.get_deadline(t_measure) >= blocked_obj.end)
+                overlapping = t_measure >= blocked_obj
                 follow_up = Implication(NOT(termination),
                                         exist(type(blocked_obj), lambda block_obj1, block_obj=blocked_obj:
                                         AND(EQ(block_obj1.end, block_obj.end),
                                             block_obj1.time > blocked_obj.time)))
-                return AND(triggered, forced, follow_up)
+                return AND(triggered, forced, overlapping, follow_up)
             else:
                 c_obg_end = c_obg.get_deadline(t_measure)
                 termination = AND(c_obg_end <= blocked_obj.end, c_obg_end >= blocked_obj.time)
